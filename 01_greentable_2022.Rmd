@@ -1,0 +1,227 @@
+---
+title: 'Green table'
+author: ''
+date: ''
+output: 
+  officedown::rdocx_document: default
+  word_document:
+    number_sections: yes
+    reference_docx: './template.docx'
+  bookdown::word_document2: default
+bibliography: '/Users/moi/Zotero/exportdb/My Library.bib'
+csl: './ices.csl'
+---
+
+
+
+```{r compile, include=FALSE,eval=FALSE}
+rmarkdown::render("01_greentable.Rmd")
+```
+
+```{r setup, include=FALSE}
+library(dplyr)
+library(icesVocab)
+	library(httr)
+	library(icesConnect) #ask a token using  ices_token
+library(jsonlite)
+library(flextable)
+library(ftExtra)
+library(officer)
+
+#get some ICES vocab stuff
+if(F){
+	uu<-findCodeType("Country", full = TRUE)
+	View(uu)
+	codes <- getCodeList("ISO_3166")
+	saveRDS(codes,file="../data/codes/codes_country.rds")
+}
+codctry<-readRDS("../data/codes/codes_country.rds")
+codctry$Description<-paste0(toupper(substr(codctry$Description,1,1)),tolower(substr(codctry$Description,2,nchar(codctry$Description))))
+#nice country name
+
+
+
+# read data
+listfich<-dir(path="../data/",full=T,all=T,rec=T)
+pathD1<-listfich[grepl("D1_",listfich)]
+pathD2<-listfich[grepl("D2_",listfich)]
+pathD3<-listfich[grepl("D3_",listfich)]
+pathefrdb<-listfich[grepl("Effort ",listfich)]
+D1old<-read.csv(pathD1,na.strings="NULL")#%>%filter(Year>=2017,Year<2022)
+D2old<-read.csv(pathD2,na.strings="NULL")#%>%filter(Year>=2017,Year<2022)
+D3old<-read.csv(pathD3,na.strings="NULL")#%>%filter(Year>=2017,Year<2022)
+efrdb<-read.csv(pathefrdb,na.strings="NULL")
+
+
+# local versus GET to speed up process and in case of offline works
+if(F){
+	# read the data from ices API
+	library(httr)
+	library(icesConnect) #ask a token using  ices_token
+	library(jsonlite)
+	linkD1<-"https://bycatch.ices.dk/api/GetD1_Fishing_effort"
+	linkD2<-"https://bycatch.ices.dk/api/GetD2_Bycatch_monitoring_effort"
+	linkD3<-"https://bycatch.ices.dk/api/GetD3_BycatchEvent"
+	# test
+	resp1<-ices_get_jwt(linkD1,username="dubroca")  
+	D1<-content(resp1,as="text")
+	D1<-fromJSON(D1)
+	resp2<-ices_get_jwt(linkD2,username="dubroca")  
+	D2<-content(resp2,as="text")
+	D2<-fromJSON(D2)
+	resp3<-ices_get_jwt(linkD3,username="dubroca")  
+	D3<-content(resp3,as="text")
+	D3<-fromJSON(D3)
+	save(D1,D2,D3,file="../data/icesdb/D123.rdata")
+}else{
+	load("../data/icesdb/D123.rdata")
+}
+
+
+
+
+
+
+```
+
+
+```{r tab1,include=F}
+#green table
+greentableD1<-D1%>%
+	filter(year>=2017,year<=2021)%>%
+	left_join(codctry,by=c("country"="Key"))%>%
+	group_by(Country=paste0(Description," (",country,")"),year)%>%
+	summarise(n=n())%>%
+	mutate(year=paste0("D1_",year))%>%
+	tidyr::pivot_wider(values_from=n,names_from=year,names_sort=T)
+greentableD2<-D2%>%
+	filter(year>=2017,year<=2021)%>%
+	left_join(codctry,by=c("country"="Key"))%>%
+	group_by(Country=paste0(Description," (",country,")"),year)%>%
+	summarise(n=n())%>%
+	mutate(year=paste0("D2_",year))%>%
+	tidyr::pivot_wider(values_from=n,names_from=year,names_sort=T)
+greentableD3<-D3%>%
+	filter(year>=2017,year<=2021)%>%
+	left_join(codctry,by=c("country"="Key"))%>%
+	group_by(Country=paste0(Description," (",country,")"),year)%>%
+	summarise(n=n())%>%
+	mutate(year=paste0("D3_",year))%>%
+	tidyr::pivot_wider(values_from=n,names_from=year,names_sort=TRUE)
+greentable<-full_join(full_join(greentableD1,greentableD2),greentableD3)%>%
+	ungroup()%>%data.frame()
+
+#greentable bis check if at least one values is present in "important field"
+# daysAtSeaF : at least 1 value not empty
+greentableD1check<-D1%>%
+	filter(year>=2017,year<=2021)%>%
+	left_join(codctry,by=c("country"="Key"))%>%
+	group_by(Country=paste0(Description," (",country,")"),year)%>%
+	summarise(na1=sum(daysAtSeaF))%>%
+	ungroup()%>%
+	mutate(year=paste0("D1_",year)) %>%
+	tidyr::pivot_wider(values_from=na1,names_from=year,names_sort=T,values_fill=-9)
+# daysAtSeaOb : at least 1 value not empty
+greentableD2check<-D2%>%
+	filter(year>=2017,year<=2021)%>%
+	left_join(codctry,by=c("country"="Key"))%>%
+	group_by(Country=paste0(Description," (",country,")"),year)%>%
+	summarise(na1=sum(daysAtSeaOb))%>%
+	ungroup()%>%
+	mutate(year=paste0("D2_",year)) %>%
+	tidyr::pivot_wider(values_from=na1,names_from=year,names_sort=T,values_fill=-9)
+# at least numerical value (zero included) in incidents column
+greentableD3check<-D3%>%
+	mutate(nbinc=incidentsWithPingers+incidentsWithoutPingers)%>%
+	filter(year>=2017,year<=2021)%>%
+	left_join(codctry,by=c("country"="Key"))%>%
+	group_by(Country=paste0(Description," (",country,")"),year)%>%
+	summarise(nbinc=sum(nbinc))%>%
+	ungroup()%>%
+	mutate(year=paste0("D3_",year)) %>%
+	tidyr::pivot_wider(values_from=nbinc,names_from=year,names_sort=T,values_fill=-9)
+greentablecheck<-full_join(full_join(greentableD1check,greentableD2check),greentableD3check)%>%
+	ungroup()%>%data.frame()
+
+#build up a submission table from old D123
+subtableD1<-D1old%>%
+	filter(Year>=2017,Year<=2021)%>%
+	left_join(codctry,by=c("Country"="Key"))%>%
+	group_by(Country=paste0(Description," (",Country,")"),Year)%>%
+	summarise(n=paste0(sort(unique(SubmissionYear)),collapse=","))%>%
+	mutate(Year=paste0("D1_",Year))%>%
+	tidyr::pivot_wider(values_from=n,names_from=Year,names_sort=T)
+subtableD2<-D2old%>%
+	filter(Year>=2017,Year<=2021)%>%
+	left_join(codctry,by=c("Country"="Key"))%>%
+	group_by(Country=paste0(Description," (",Country,")"),Year)%>%
+	summarise(n=paste0(sort(unique(SubmissionYear)),collapse=","))%>%
+	mutate(Year=paste0("D2_",Year))%>%
+	tidyr::pivot_wider(values_from=n,names_from=Year,names_sort=T)
+subtableD3<-D3old%>%
+	filter(Year>=2017,Year<=2021)%>%
+	left_join(codctry,by=c("Country"="Key"))%>%
+	group_by(Country=paste0(Description," (",Country,")"),Year)%>%
+	summarise(n=paste0(sort(unique(SubmissionYear)),collapse=","))%>%
+	mutate(Year=paste0("D3_",Year))%>%
+	tidyr::pivot_wider(values_from=n,names_from=Year,names_sort=T)
+subtable<-full_join(full_join(subtableD1,subtableD2),subtableD3)%>%
+	ungroup()%>%data.frame()
+#identify no data info according to greentablecheck
+
+
+
+
+nametab<-names(greentable)[-1]
+nametab<-paste0(nametab,"='",substr(nametab,4,7),"'",collapse=",")
+nametab<-eval(parse(text=paste0("list(",nametab,")")))
+bgcolormat<-ifelse(is.na(greentable[,-1]),"white","darkgreen")
+charcolormat<-matrix("white",nrow=nrow(subtable),ncol=ncol(subtable)-1)
+charcolormat["2022"==subtable[,-1]]<-"yellow"
+charcolormat["2021,2022"==subtable[,-1]]<-"yellow"
+
+big_border<-fp_border(color="black", width = 2)
+#remove number 
+greentable[is.na(greentable)]<-0
+
+ftgreentable<-flextable(subtable)%>%
+	bg(j=2:ncol(greentable),bg=bgcolormat)%>%
+	color(j=2:ncol(greentable),color=charcolormat)%>%
+	set_header_labels(values=nametab)%>%
+	add_header_row(values=c("","Fishing Effort (D1 table)",
+				"Monitoring Effort (D2 table)",
+				"Bycatch Events (D3 table)"),colwidths=c(1,5,5,5))%>%
+	theme_box()%>%
+	align(align="center",part="header")%>%
+	align(align="center",part="body")%>%
+	vline(j=c(1,6,11),border=big_border)%>%
+	fontsize(part="all",size=6)%>%
+	autofit(add_w=0,add_h=0)
+ftgreentable
+
+#save as docx object ?
+save_as_docx(ftgreentable,path='./greentable.docx',
+	     pr_section=prop_section(
+				page_size=page_size(orient="landscape"),
+				page_margins=page_mar(bottom=0.1,top=.1,right=.1,left=.1,header=0,footer=0,gutter=0)
+				)
+		)
+
+```
+
+# Table of responses by country – 2018 – 2021
+
+
+ICES/WGBYC requested data from 27 countries through the 2022 data call. 
+26 countries responded and submitted data on fishing and sampling effort and bycatch observations for 2021. Bulgaria submitted data for the first time in 2022, providing data from 2019 to 2021. Lithuania updated the 2019 data for this datacall. A data submission was considered achieved if at least one value of effort was reported in the fishing and monitoring effort tables. For the bycatch events, only the presence of data was considered, as zero values (e.g. absence of bycatch events) is not clearly defined in the datacall. 
+
+
+Table caption : year(s) of data submission by countries by year of data providing data to ICES WGBYC with data on fishing effort, observer effort (either days at sea or other measurement, e.g. effort per haul or set), and bycatch records. Green = Data submission received, White = no data received. The 2022 data submission is highlighted in yellow.
+
+<!---BLOCK_LANDSCAPE_START--->
+
+```{r showtab1,echo=F}
+ftgreentable#,preview="docx")
+```
+
+<!---BLOCK_LANDSCAPE_STOP--->

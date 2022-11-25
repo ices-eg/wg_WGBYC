@@ -1,0 +1,195 @@
+"","Ecoregion","MetierL4","Species","animals","das","rate"
+"1","Adriatic Sea","OTB","Pagophilus groenlandicus",2,709,0.00282087447108604
+"2","Adriatic Sea","PTM","Tursiops truncatus",6,1237,0.00485044462409054
+"3","Azores","LHM","Delphinus delphis",2,3238,0.000617665225447807
+"4","Azores","LLD","Globicephala melas",1,312,0.00320512820512821
+"5","Baltic Sea","FPO","Halichoerus grypus",4,1887,0.00211976682564918
+"6","Baltic Sea","FPO","Pusa hispida",2,1887,0.00105988341282459
+"7","Baltic Sea","FYK","Halichoerus grypus",23,34782,0.000661261572077511
+"8","Baltic Sea","GNS","Phoca vitulina",15,95054.2285714286,0.000157804657672102
+"9","Baltic Sea","GNS","Phocoena phocoena",25,95054.2285714286,0.000263007762786836
+"10","Bay of Biscay and the Iberian Coast","GNS","Delphinus delphis",13,1643.22046556385,0.00791129387226761
+"11","Bay of Biscay and the Iberian Coast","GNS","Tursiops truncatus",2,1643.22046556385,0.00121712213419502
+"12","Bay of Biscay and the Iberian Coast","GTR","Delphinus delphis",17,649.074859943978,0.026191123781111
+"13","Bay of Biscay and the Iberian Coast","GTR","Halichoerus grypus",2,649.074859943978,0.0030813086801307
+"14","Bay of Biscay and the Iberian Coast","GTR","Phocoena phocoena",6,649.074859943978,0.00924392604039211
+"15","Bay of Biscay and the Iberian Coast","LLS","Delphinus delphis",1,944.027380952381,0.00105929130889313
+"16","Bay of Biscay and the Iberian Coast","OTB","Delphinus delphis",1,1017.49119003343,0.000982809492401746
+"17","Bay of Biscay and the Iberian Coast","OTB","Phocoena phocoena",1,1017.49119003343,0.000982809492401746
+"18","Bay of Biscay and the Iberian Coast","PS","Delphinus delphis",6,549.5,0.010919017288444
+"19","Bay of Biscay and the Iberian Coast","PTB","Delphinus delphis",33,176.133333333333,0.187358062074186
+"20","Bay of Biscay and the Iberian Coast","PTM","Delphinus delphis",90,646.172463768116,0.139281701165615
+"21","Bay of Biscay and the Iberian Coast","PTM","Globicephala melas",5,646.172463768116,0.00773787228697862
+"22","Bay of Biscay and the Iberian Coast","PTM","Phocoena phocoena",1,646.172463768116,0.00154757445739572
+"23","Celtic Seas","GNS","Delphinus delphis",6,998.717414831545,0.00600770539383458
+"24","Celtic Seas","GNS","Halichoerus grypus",194,998.717414831545,0.194249141067318
+"25","Celtic Seas","GNS","Halichoerus grypus",8,998.717414831545,0.0080102738584461
+"26","Celtic Seas","GNS","Phoca vitulina",1,998.717414831545,0.00100128423230576
+"27","Celtic Seas","GNS","Phocidae",2,998.717414831545,0.00200256846461153
+"28","Celtic Seas","GNS","Phocoena phocoena",6,998.717414831545,0.00600770539383458
+"29","Celtic Seas","GTR","Delphinidae",1,83.8786169144865,0.0119219896176816
+"30","Celtic Seas","GTR","Delphinus delphis",1,83.8786169144865,0.0119219896176816
+"31","Celtic Seas","GTR","Halichoerus grypus",6,83.8786169144865,0.0715319377060896
+"32","Celtic Seas","OTB","Delphinus delphis",10,3189.32066600745,0.00313546395838538
+"33","Celtic Seas","OTB","Phoca vitulina",1,3189.32066600745,0.000313546395838538
+"34","Celtic Seas","OTB","Phocoena phocoena",2,3189.32066600745,0.000627092791677075
+"35","Celtic Seas","OTM","Globicephala melas",3,688,0.00436046511627907
+"36","Celtic Seas","OTM","Halichoerus grypus",17,688,0.0247093023255814
+"37","Celtic Seas","OTM","Halichoerus grypus",1,688,0.00145348837209302
+"38","Celtic Seas","OTT","Delphinidae",1,1878.16897294343,0.000532433457482167
+"39","Celtic Seas","OTT","Delphinus delphis",2,1878.16897294343,0.00106486691496433
+"40","Celtic Seas","OTT","Phocidae",1,1878.16897294343,0.000532433457482167
+"41","Celtic Seas","OTT","Phocoena phocoena",2,1878.16897294343,0.00106486691496433
+"42","Greater North Sea","GNS","Delphinus delphis",4,2400.57552549789,0.00166626709200094
+"43","Greater North Sea","GNS","Halichoerus grypus",6,2400.57552549789,0.00249940063800141
+"44","Greater North Sea","GNS","Halichoerus grypus",2,2400.57552549789,0.000833133546000469
+"45","Greater North Sea","GNS","Lagenorhynchus albirostris",2,2400.57552549789,0.000833133546000469
+"46","Greater North Sea","GNS","Phoca vitulina",55,2400.57552549789,0.0229111725150129
+"47","Greater North Sea","GNS","Phocoena phocoena",228,2400.57552549789,0.0949772242440535
+"48","Greater North Sea","GNS","Pinnipedia",2,2400.57552549789,0.000833133546000469
+"49","Greater North Sea","GTR","Delphinus delphis",2,438.466345934767,0.00456135349621006
+"50","Greater North Sea","GTR","Halichoerus grypus",6,438.466345934767,0.0136840604886302
+"51","Greater North Sea","GTR","Phoca vitulina",1,438.466345934767,0.00228067674810503
+"52","Greater North Sea","GTR","Phocoena phocoena",11,438.466345934767,0.0250874442291553
+"53","Greater North Sea","OTB","Delphinus",2,3156.9171396603,0.000633529456593597
+"54","Greater North Sea","OTB","Delphinus delphis",3,3156.9171396603,0.000950294184890395
+"55","Greater North Sea","OTB","Halichoerus grypus",1,3156.9171396603,0.000316764728296798
+"56","Greater North Sea","OTB","Phocidae",1,3156.9171396603,0.000316764728296798
+"57","Greater North Sea","OTB","Phocoena phocoena",1,3156.9171396603,0.000316764728296798
+"58","Greater North Sea","OTM","Halichoerus grypus",23,562.614135627726,0.0408805938982287
+"59","Greater North Sea","SDN","Phocoena phocoena",1,79.8881941587824,0.0125174941119891
+"60","Greater North Sea","TBB","Delphinus delphis",1,1236.03969124622,0.000809035508391937
+"61","Greater North Sea","TBB","Halichoerus grypus",1,1236.03969124622,0.000809035508391937
+"62","Iceland Sea","GNS","Halichoerus grypus",35,577,0.0606585788561525
+"63","Iceland Sea","GNS","Lagenorhynchus albirostris",2,577,0.00346620450606586
+"64","Iceland Sea","GNS","Megaptera novaeangliae",2,577,0.00346620450606586
+"65","Iceland Sea","GNS","Pagophilus groenlandicus",26,577,0.0450606585788562
+"66","Iceland Sea","GNS","Pagophilus groenlandicus ",3,577,0.00519930675909879
+"67","Iceland Sea","GNS","Phoca hispida",2,577,0.00346620450606586
+"68","Iceland Sea","GNS","Phoca vitulina",108,577,0.187175043327556
+"69","Iceland Sea","GNS","Phocoena phocoena",134,577,0.232235701906412
+"70","Iceland Sea","GNS","Pusa hispida",2,577,0.00346620450606586
+"71","Iceland Sea","OTB","Pagophilus groenlandicus ",1,1159,0.000862812769628991
+"72","Norwegian Sea","GNS","Halichoerus grypus",2,5785,0.000345721694036301
+"73","Norwegian Sea","GNS","Phoca vitulina",54,5785,0.00933448573898012
+"74","Norwegian Sea","GNS","Phocoena phocoena",146,5785,0.02523768366465
+"75","Western Mediterranean Sea","LLD","Grampus griseus",1,799,0.00125156445556946
+"76","Western Mediterranean Sea","OTB","Delphinidae",1,4409.08333333333,0.000226804513409817
+"77","Western Mediterranean Sea","OTB","Stenella coeruleoalba",1,4409.08333333333,0.000226804513409817
+"78","Western Mediterranean Sea","OTB","Tursiops truncatus",1,4409.08333333333,0.000226804513409817
+"79","Western Mediterranean Sea","OTT","Tursiops truncatus",1,305.166666666667,0.00327689787001638
+"80","Adriatic Sea","OTB","Phalacrocorax aristotelis",3,709,0.00423131170662906
+"81","Aegean-Levantine Sea","GTR","Phalacrocorax aristotelis",1,2378,0.000420521446593776
+"82","Azores","LHM","Calonectris borealis",3,3238,0.000926497838171711
+"83","Azores","LHM","Puffinus gravis",2,3238,0.000617665225447807
+"84","Baltic Sea","FPN","Phalacrocorax carbo",1,2179,0.000458926112895824
+"85","Baltic Sea","FYK","Phalacrocorax carbo",20,34782,0.000575010062676097
+"86","Baltic Sea","GNS","Alca torda",6,95054.2285714286,6.31218630688407e-05
+"87","Baltic Sea","GNS","Anatidae",35,95054.2285714286,0.000368210867901571
+"88","Baltic Sea","GNS","Aythya fuligula",2,95054.2285714286,2.10406210229469e-05
+"89","Baltic Sea","GNS","Aythya marila",8,95054.2285714286,8.41624840917876e-05
+"90","Baltic Sea","GNS","Branta bernicla",1,95054.2285714286,1.05203105114735e-05
+"91","Baltic Sea","GNS","Clangula hyemalis",3,95054.2285714286,3.15609315344204e-05
+"92","Baltic Sea","GNS","Gavia arctica",2,95054.2285714286,2.10406210229469e-05
+"93","Baltic Sea","GNS","Melanitta fusca",172,95054.2285714286,0.00180949340797343
+"94","Baltic Sea","GNS","Melanitta nigra",3,95054.2285714286,3.15609315344204e-05
+"95","Baltic Sea","GNS","Phalacrocorax carbo",19,95054.2285714286,0.000199885899717996
+"96","Baltic Sea","GNS","Podiceps cristatus",1,95054.2285714286,1.05203105114735e-05
+"97","Baltic Sea","GNS","Podiceps grisegena",1,95054.2285714286,1.05203105114735e-05
+"98","Baltic Sea","GNS","Somateria mollissima",105,95054.2285714286,0.00110463260370471
+"99","Baltic Sea","GNS","Uria aalge",69,95054.2285714286,0.000725901425291668
+"100","Baltic Sea","GTR","Aythya fuligula",2,83.0714285714286,0.0240756663800516
+"101","Baltic Sea","GTR","Aythya marila",1,83.0714285714286,0.0120378331900258
+"102","Baltic Sea","GTR","Phalacrocorax carbo",10,83.0714285714286,0.120378331900258
+"103","Baltic Sea","GTR","Uria aalge",1,83.0714285714286,0.0120378331900258
+"104","Baltic Sea","LLD","Uria aalge",5,55,0.0909090909090909
+"105","Bay of Biscay and the Iberian Coast","GNS","Alca torda",1,1643.22046556385,0.000608561067097509
+"106","Bay of Biscay and the Iberian Coast","GNS","Alcidae",1,1643.22046556385,0.000608561067097509
+"107","Bay of Biscay and the Iberian Coast","GNS","Gavia stellata",1,1643.22046556385,0.000608561067097509
+"108","Bay of Biscay and the Iberian Coast","GNS","Larus",2,1643.22046556385,0.00121712213419502
+"109","Bay of Biscay and the Iberian Coast","GNS","Larus michahellis",7,1643.22046556385,0.00425992746968256
+"110","Bay of Biscay and the Iberian Coast","GNS","Morus bassanus",17,1643.22046556385,0.0103455381406576
+"111","Bay of Biscay and the Iberian Coast","GNS","Phalacrocorax aristotelis",3,1643.22046556385,0.00182568320129253
+"112","Bay of Biscay and the Iberian Coast","GNS","Puffinus mauretanicus",2,1643.22046556385,0.00121712213419502
+"113","Bay of Biscay and the Iberian Coast","GNS","Uria aalge",67,1643.22046556385,0.0407735914955331
+"114","Bay of Biscay and the Iberian Coast","GTR","Melanitta nigra",2,649.074859943978,0.0030813086801307
+"115","Bay of Biscay and the Iberian Coast","GTR","Morus bassanus",8,649.074859943978,0.0123252347205228
+"116","Bay of Biscay and the Iberian Coast","GTR","Phalacrocorax carbo",4,649.074859943978,0.00616261736026141
+"117","Bay of Biscay and the Iberian Coast","GTR","Puffinus mauretanicus",2,649.074859943978,0.0030813086801307
+"118","Bay of Biscay and the Iberian Coast","GTR","Uria aalge",455,649.074859943978,0.700997724729735
+"119","Bay of Biscay and the Iberian Coast","LLS","Larus michahellis",1,944.027380952381,0.00105929130889313
+"120","Bay of Biscay and the Iberian Coast","LLS","Morus bassanus",37,944.027380952381,0.0391937784290458
+"121","Bay of Biscay and the Iberian Coast","LLS","Puffinus mauretanicus",1,944.027380952381,0.00105929130889313
+"122","Bay of Biscay and the Iberian Coast","LTL","Morus bassanus",11,75.0942028985507,0.146482678760977
+"123","Bay of Biscay and the Iberian Coast","OTB","Morus bassanus",14,1017.49119003343,0.0137593328936244
+"124","Bay of Biscay and the Iberian Coast","PS","Larus michahellis",6,549.5,0.010919017288444
+"125","Bay of Biscay and the Iberian Coast","PTB","Morus bassanus",1,176.133333333333,0.0056775170325511
+"126","Celtic Seas","GNS","Phalacrocorax carbo",3,998.717414831545,0.00300385269691729
+"127","Celtic Seas","GNS","Uria aalge",37,998.717414831545,0.0370475165953132
+"128","Celtic Seas","LLS","Fulmarus glacialis",12,130.75,0.0917782026768643
+"129","Celtic Seas","LLS","Morus bassanus",12,130.75,0.0917782026768643
+"130","Celtic Seas","OTB","Morus bassanus",16,3189.32066600745,0.0050167423334166
+"131","Celtic Seas","OTT","Larus argentatus",1,1878.16897294343,0.000532433457482167
+"132","Celtic Seas","PTM","Morus bassanus",1,266.85,0.00374742364624321
+"133","Celtic Seas","TBB","Morus bassanus",2,863.060308753778,0.00231733516153456
+"134","Greater North Sea","GND","Phalacrocoracidae",1,49.3730158730159,0.0202539784600547
+"135","Greater North Sea","GNS","Alca torda",38,2400.57552549789,0.0158295373740089
+"136","Greater North Sea","GNS","Alcidae",3,2400.57552549789,0.0012497003190007
+"137","Greater North Sea","GNS","Gavia arctica",1,2400.57552549789,0.000416566773000235
+"138","Greater North Sea","GNS","Gavia stellata",4,2400.57552549789,0.00166626709200094
+"139","Greater North Sea","GNS","Melanitta fusca",5,2400.57552549789,0.00208283386500117
+"140","Greater North Sea","GNS","Melanitta nigra",1,2400.57552549789,0.000416566773000235
+"141","Greater North Sea","GNS","Phalacrocoracidae",1,2400.57552549789,0.000416566773000235
+"142","Greater North Sea","GNS","Phalacrocorax aristotelis",2,2400.57552549789,0.000833133546000469
+"143","Greater North Sea","GNS","Phalacrocorax carbo",9,2400.57552549789,0.00374910095700211
+"144","Greater North Sea","GNS","Somateria mollissima",3,2400.57552549789,0.0012497003190007
+"145","Greater North Sea","GNS","Uria aalge",327,2400.57552549789,0.136217334771077
+"146","Greater North Sea","GTR","Uria aalge",13,438.466345934767,0.0296487977253654
+"147","Greater North Sea","LHM","Morus bassanus",1,63,0.0158730158730159
+"148","Greater North Sea","LLS","Fulmarus glacialis",110,155.45,0.707623029913155
+"149","Greater North Sea","LLS","Morus bassanus",3,155.45,0.0192988099067224
+"150","Greater North Sea","LLS","Stercorarius skua",1,155.45,0.00643293663557414
+"151","Greater North Sea","OTB","Morus bassanus",8,3156.9171396603,0.00253411782637439
+"152","Greater North Sea","OTM","Larus argentatus",1,562.614135627726,0.00177741712600994
+"153","Greater North Sea","PTB","Morus bassanus",11,547.859262224143,0.0200781491862405
+"154","Greater North Sea","TBB","Morus bassanus",9,1236.03969124622,0.00728131957552743
+"155","Iceland Sea","GNS","Alca torda",3,577,0.00519930675909879
+"156","Iceland Sea","GNS","Cepphus grylle",182,577,0.315424610051993
+"157","Iceland Sea","GNS","Clangula hyemalis",4,577,0.00693240901213172
+"158","Iceland Sea","GNS","Fratercula arctica",2,577,0.00346620450606586
+"159","Iceland Sea","GNS","Fulmarus glacialis",5,577,0.00866551126516464
+"160","Iceland Sea","GNS","Gavia immer",3,577,0.00519930675909879
+"161","Iceland Sea","GNS","Morus bassanus",4,577,0.00693240901213172
+"162","Iceland Sea","GNS","Phalacrocoracidae",53,577,0.0918544194107452
+"163","Iceland Sea","GNS","Somateria mollissima",299,577,0.518197573656846
+"164","Iceland Sea","GNS","Uria aalge",291,577,0.504332755632582
+"165","Iceland Sea","GNS","Uria lomvia",4,577,0.00693240901213172
+"166","Iceland Sea","LLS","Fulmarus glacialis",139,236,0.588983050847458
+"167","Iceland Sea","LLS","Larus argentatus",35,236,0.148305084745763
+"168","Iceland Sea","LLS","Larus fuscus",5,236,0.0211864406779661
+"169","Iceland Sea","LLS","Morus bassanus",25,236,0.105932203389831
+"170","Mediterranean Sea","LLD","Larus audouinii",5,570,0.0087719298245614
+"171","Mediterranean Sea","LLD","Larus michahellis",2,570,0.00350877192982456
+"172","Mediterranean Sea","LLD","Puffinus mauretanicus",3,570,0.00526315789473684
+"173","Mediterranean Sea","LLD","Puffinus yelkouan",2,570,0.00350877192982456
+"174","Western Mediterranean Sea","LLD","Calonectris diomedea",4,799,0.00500625782227785
+"175","Western Mediterranean Sea","LLD","Larus audouinii",2,799,0.00250312891113892
+"176","Western Mediterranean Sea","LLD","Larus michahellis",2,799,0.00250312891113892
+"177","Western Mediterranean Sea","LLD","Puffinus mauretanicus",5,799,0.00625782227784731
+"178","Adriatic Sea","LLD","Caretta caretta",15,167,0.0898203592814371
+"179","Adriatic Sea","OTB","Caretta caretta",77,709,0.108603667136812
+"180","Adriatic Sea","PTM","Caretta caretta",67,1237,0.0541632983023444
+"181","Aegean-Levantine Sea","GNS","Caretta caretta",2,1185,0.00168776371308017
+"182","Aegean-Levantine Sea","GTR","Caretta caretta",19,2378,0.00798990748528175
+"183","Aegean-Levantine Sea","GTR","Chelonia mydas",7,2378,0.00294365012615643
+"184","Aegean-Levantine Sea","GTR","Cheloniidae",1,2378,0.000420521446593776
+"185","Aegean-Levantine Sea","LLS","Caretta caretta",1,747,0.00133868808567604
+"186","Aegean-Levantine Sea","OTB","Caretta caretta",1,340,0.00294117647058824
+"187","Azores","LLD","Caretta caretta",27,312,0.0865384615384615
+"188","Azores","LLD","Dermochelys coriacea",6,312,0.0192307692307692
+"189","Bay of Biscay and the Iberian Coast","GNS","Caretta caretta",2,1643.22046556385,0.00121712213419502
+"190","Mediterranean Sea","LLD","Caretta caretta",10,570,0.0175438596491228
+"191","Mediterranean Sea","LLD","Dermochelys coriacea",1,570,0.00175438596491228
+"192","Western Mediterranean Sea","LLD","Caretta caretta",3,799,0.00375469336670839
+"193","Western Mediterranean Sea","OTB","Caretta caretta",15,4409.08333333333,0.00340206770114725
+"194","Western Mediterranean Sea","OTT","Caretta caretta",1,305.166666666667,0.00327689787001638

@@ -23,6 +23,7 @@ Then, in R, use this :
 	linkD2<-"https://bycatch.ices.dk/api/GetD2_Bycatch_monitoring_effort"
 	linkD3<-"https://bycatch.ices.dk/api/GetD3_BycatchEvent"
 	linkD4<-"https://bycatch.ices.dk/api/GetOverviewSubmissionTable/2023"
+	linkD5<-"https://bycatch.ices.dk/api/GetByCatchRoadMapListSpecies"
 	# download and parse the data
 	resp1<-ices_get_jwt(linkD1,username="yourusername")
 	D1<-content(resp1,as="text")
@@ -33,6 +34,7 @@ Then, in R, use this :
 	resp3<-ices_get_jwt(linkD3,username="yourusername")  
 	D3<-content(resp3,as="text")
 	D3<-fromJSON(D3)
-    resp4<-ices_get_jwt(linkD4,username="yourusername")  
+   	resp4<-ices_get_jwt(linkD4,username="yourusername")  
 	D4<-content(resp4,as="text")
 	D4<-fromJSON(D4)
+	resp5<-ices_get_jwt(linkD5,username="yourusername")  	D5<-content(resp5,as="text")	D5<-fromJSON(D5)	

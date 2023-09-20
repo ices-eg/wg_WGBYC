@@ -24,6 +24,7 @@ D1<-read.taf(taf.data.path("D1.csv"))
 D2<-read.taf(taf.data.path("D2.csv"))
 D3<-read.taf(taf.data.path("D3.csv"))
 D4<-read.taf(taf.data.path("D4.csv"))
+
 # read and simplify country codes tables
 ctrycodes<-read.taf(taf.data.path("ctrycodes.csv")) %>%
 	transmute(country=Key,ctryname=tolower(Description))%>%
@@ -38,6 +39,10 @@ monmeth<-read.taf(taf.data.path("monmeth.csv")) %>%
 gearcodes<-read.taf(taf.data.path("gearcodes.csv")) %>%
 	transmute(metierL3=Key,L3name=Description)%>%
 	distinct()
+# read and simplify monprog table
+monprog<-read.taf(taf.data.path("monprog.csv")) %>%
+	transmute(monitoringProgramType=Key,monprog=Description)%>%
+	distinct()
 
 #add plain country names and monitoring method
 D1<-D1%>%
@@ -48,6 +53,7 @@ D2<-D2%>%
 	left_join(ctrycodes,by="country")%>%
 	left_join(gearcodes,by="metierL3")%>%
 	left_join(monmeth,by="monitoringMethod")%>%
+	left_join(monprog,by="monitoringProgramType")%>%
 	filter(year%in%2017:2022)
 D3<-D3%>%
 	left_join(ctrycodes,by="country")%>%
@@ -112,12 +118,30 @@ print(plt)
 dev.off()
 
 #moniroting by program 
-monmethctry<-D2%>%group_by(monmethname,ctryname,year)%>%
+monprogctry<-D2%>%group_by(monprog,ctryname,year)%>%
 	summarise(das=sum(daysAtSeaOb,na.rm=T),.groups="drop") %>%
 	group_by(year,ctryname)%>%
 	mutate(tot=sum(das))%>%
 	ungroup()%>%
 	mutate(reldas=das/tot*100)
+write.taf(monprogctry,dir="data")
+#a graph
+plt<-ggplot(monprogctry,aes(x=year,y=reldas,
+			    stratum=monprog,
+			    alluvium=monprog,
+			    fill=monprog,
+			    label=monprog))+
+	geom_flow(stat="alluvium")+
+	geom_stratum()+
+	facet_wrap(~ctryname)+
+	theme_bw()+
+	theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+	labs(fill="Monitoring method")+
+	ylab("Proportion of annual DAS by monitoring program (%)")
+
+taf.png("output/monitoring_program_country.png")
+print(plt)
+dev.off()
 
 
 #prepare data for sample coverage by monitoring effort by gear by georegions
@@ -335,6 +359,44 @@ addWorksheet(wb,1)
 writeData(wb,1,tab123)
 saveWorkbook(wb,file="output/TOR_A_short_table.xlsx",overwrite=T)
 
+
+#shorter table
+tab2<-D2%>%
+	filter(year==2022)%>%
+	group_by(ecoregion)%>%
+	summarise(dasobs=sum(daysAtSeaOb,na.rm=T))%>%
+	ungroup()
+tab1<-D1%>%
+	filter(year==2022)%>%
+	group_by(ecoregion)%>%
+	summarise(dastot=sum(daysAtSeaF,na.rm=T))%>%
+	ungroup()
+tab3<-D3%>%
+	filter(year==2022)%>%
+	mutate(classname=ifelse(is.na(classname),"Reptiles",classname))%>%
+	group_by(Ecoregion=ecoregion,classname)%>%
+	summarise(nbspp=n_distinct(species),
+		  nb=sum(individualsWithPingers,individualsWithoutPingers,na.rm=T),
+		  inc=sum(incidentsWithPingers,incidentsWithoutPingers,na.rm=T))%>%
+	ungroup()%>%
+	mutate(info=paste(paste0(inc," inc."),paste0(nb," ind."),paste0(nbspp," spp"),sep="/"))%>%
+	select(Ecoregion,classname,info)%>%
+	tidyr::pivot_wider(values_from=info,names_from=classname)
+
+tab123<-left_join(tab1,tab2)%>%
+	filter(!is.na(ecoregion))%>%
+	transmute(Ecoregion=ecoregion,
+		  `Fishing Effort (das)`=dastot,
+		  `Total Observed Effort (das)`=dasobs,
+		  `Monitoring Coverage (%)`=100*(dasobs/dastot))%>%
+	left_join(tab3)
+
+
+#write excel file
+wb<-createWorkbook()
+addWorksheet(wb,1)
+writeData(wb,1,tab123)
+saveWorkbook(wb,file="output/TOR_A_shorter_table.xlsx",overwrite=T)
 
 
 

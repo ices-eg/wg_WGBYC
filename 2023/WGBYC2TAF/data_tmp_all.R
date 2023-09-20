@@ -231,12 +231,12 @@ tab2<-D2%>%
 	ungroup()
 tab1<-D1%>%
 	filter(year==2022)%>%
-	group_by(metierL3,areaCode)%>%
+	group_by(ecoregion,metierL3,areaCode)%>%
 	summarise(dastot=sum(daysAtSeaF,na.rm=T))%>%
 	ungroup()
 tab3<-D3%>%
 	filter(year==2022)%>%
-	group_by(areaCode,metierL3,monitoringMethod,species,classname)%>%
+	group_by(ecoregion,areaCode,metierL3,monitoringMethod,species,classname)%>%
 	summarise(nb=sum(individualsWithPingers,individualsWithoutPingers,na.rm=T),
 		  inc=sum(incidentsWithPingers,incidentsWithoutPingers,na.rm=T))%>%
 	ungroup()
@@ -282,12 +282,11 @@ tab3<-D3%>%
 	ungroup()
 
 tab123<-left_join(left_join(tab2,tab1),tab3)%>%filter(!is.na(species))%>%
-	transmute(ecoregion,areaCode,metierL3,dastot,monitoringMethod,dasobs,
+	transmute(ecoregion,metierL3,dastot,monitoringMethod,dasobs,
 		  moncov=100*(dasobs/dastot),classname,species,nb,inc)%>%
 	mutate(dasobs=ifelse(dasobs==0,NA,dasobs))%>%
 	mutate(moncov=ifelse(dasobs==0,NA,moncov))%>%
 	transmute(Ecoregion=ecoregion,
-		  AreaCode=areaCode,
 		  MetierL3=metierL3,
 		  `Fishing Effort (das)`=dastot,
 		  MonitoringMethod=monitoringMethod,

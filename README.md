@@ -6,6 +6,8 @@ The repository is organized by year.
 
 ## Access to WGBYC data
 
+The WGBYC data format is here http://datsu.ices.dk/web/selRep.aspx?Dataset=128.
+
 First ask ICES to get the right to access WGBYC data using the API.
 
 Then, in R, use this :

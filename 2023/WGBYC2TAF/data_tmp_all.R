@@ -23,6 +23,7 @@ print("TOR A")
 D1<-read.taf(taf.data.path("D1.csv"))
 D2<-read.taf(taf.data.path("D2.csv"))
 D3<-read.taf(taf.data.path("D3.csv"))
+D4<-read.taf(taf.data.path("D4.csv"))
 # read and simplify country codes tables
 ctrycodes<-read.taf(taf.data.path("ctrycodes.csv")) %>%
 	transmute(country=Key,ctryname=tolower(Description))%>%
@@ -110,6 +111,13 @@ taf.png("output/monitoring_method_country.png")
 print(plt)
 dev.off()
 
+#moniroting by program 
+monmethctry<-D2%>%group_by(monmethname,ctryname,year)%>%
+	summarise(das=sum(daysAtSeaOb,na.rm=T),.groups="drop") %>%
+	group_by(year,ctryname)%>%
+	mutate(tot=sum(das))%>%
+	ungroup()%>%
+	mutate(reldas=das/tot*100)
 
 
 #prepare data for sample coverage by monitoring effort by gear by georegions
@@ -135,7 +143,7 @@ for(i in listecoregion){
 	theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
 	labs(fill="Monitoring method")+
 	ggtitle(i)+
-	ylab("Sum of annual DAS by monitoring method (%)")
+	ylab("Sum of annual DAS by monitoring method")
 	filename<-paste0("output/monitoring_method_",gsub(" ","",i),".png")
 	print(filename)
 	taf.png(filename)
@@ -143,6 +151,31 @@ for(i in listecoregion){
 	dev.off()
 }
 
+#prepare data for sample coverage by monitoring effort by georegions
+monmethecoregion<-D2%>%group_by(monmethname,ecoregion,year)%>%
+	summarise(das=sum(daysAtSeaOb,na.rm=T),.groups="drop") %>%
+	filter(!is.na(ecoregion))
+write.taf(monmethecoregion,dir="data")
+
+	plt<-ggplot(monmethecoregion%>%mutate(ecoregion=sub(" ","\n",ecoregion))
+		    ,aes(x=year,y=das,
+			    stratum=monmethname,
+			    alluvium=monmethname,
+			    fill=monmethname,
+			    label=monmethname))+
+	geom_flow(stat="alluvium")+
+	geom_stratum()+
+	facet_wrap(~ecoregion,scale="free")+
+	theme_bw()+
+	theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+	labs(fill="Monitoring method")+
+	ggtitle(i)+
+	ylab("Sum of annual DAS by monitoring method")
+	filename<-paste0("output/monitoring_method_ecoregion.png")
+	print(filename)
+	taf.png(filename)
+	print(plt)
+	dev.off()
 
 
 #green table
@@ -300,7 +333,7 @@ tab123<-left_join(left_join(tab2,tab1),tab3)%>%filter(!is.na(species))%>%
 wb<-createWorkbook()
 addWorksheet(wb,1)
 writeData(wb,1,tab123)
-saveWorkbook(wb,file="output/TOR_A_long_table.xlsx",overwrite=T)
+saveWorkbook(wb,file="output/TOR_A_short_table.xlsx",overwrite=T)
 
 
 

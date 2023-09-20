@@ -6,19 +6,22 @@ The repository is organized by year.
 
 ## Access to WGBYC data
 
-First ask ICES to get the right the access WGBYC data using the API.
+First ask ICES to get the right to access WGBYC data using the API.
 
 Then, in R, use this :
 
 	#tokenize data exchange
-	library(icesConnect) #ask a token using  ices_token
+	library(icesConnect) 
+    #ask a token using  ices_token
+    ices_token(username="yourusername",password="youpassword",refresh=T)
 	# read the data from ices API
 	library(httr)
 	library(jsonlite)
 	linkD1<-"https://bycatch.ices.dk/api/GetD1_Fishing_effort"
 	linkD2<-"https://bycatch.ices.dk/api/GetD2_Bycatch_monitoring_effort"
 	linkD3<-"https://bycatch.ices.dk/api/GetD3_BycatchEvent"
-	# download and parse 
+	linkD4<-"https://bycatch.ices.dk/api/GetOverviewSubmissionTable/2023"
+	# download and parse the data
 	resp1<-ices_get_jwt(linkD1,username="yourusername")
 	D1<-content(resp1,as="text")
 	D1<-fromJSON(D1)
@@ -28,3 +31,6 @@ Then, in R, use this :
 	resp3<-ices_get_jwt(linkD3,username="yourusername")  
 	D3<-content(resp3,as="text")
 	D3<-fromJSON(D3)
+    resp4<-ices_get_jwt(linkD4,username="yourusername")  
+	D4<-content(resp4,as="text")
+	D4<-fromJSON(D4)

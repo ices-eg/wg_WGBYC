@@ -13,18 +13,117 @@ library(flextable)
 library(ftExtra)
 library(officer)
 require(openxlsx)
+require(countrycode)
 
 
 mkdir("data")
 
 ## TOR A example
 print("TOR A")
-#read the data
-D1<-read.taf(taf.data.path("D1.csv"))
-D2<-read.taf(taf.data.path("D2.csv"))
-D3<-read.taf(taf.data.path("D3.csv"))
-D4<-read.taf(taf.data.path("D4.csv"))
-D5<-read.taf(taf.data.path("D5.csv"))
+#wgbyc effort
+efbyc<-read.taf(taf.data.path("D1.csv"))
+countrycode(unique(efbyc$country),"iso2c","iso3c")
+
+#read effort
+#read MIXFISH data
+print(load("../../../data/WGMIXFISH/WGMIXFISH_effort_IE_FR_2018-2022_for_WGBYC.Rdata"))
+efmix<-ef
+rm(ef)
+#read rdb data
+efrdb<-read.csv("../../../data/RDB/RDB CE Effort 2009 2022.csv")
+ctrylist<-data.frame(FlagCountry=sort(unique(efrdb$FlagCountry)),country=NA)
+ctrylist$country<-countrycode(ctrylist$FlagCountry,"iso3c","iso2c")
+ctrylist<-ctrylist%>%
+	mutate(country=ifelse(FlagCountry=="ENG","GB",country),
+	       country=ifelse(FlagCountry=="NIR","GB",country),
+	       country=ifelse(FlagCountry=="SCT","GB",country),
+	       country=ifelse(FlagCountry=="WLS","GB",country))
+efrdb<-left_join(efrdb,ctrylist)
+#HCE RBDES
+efrdbes<-read.csv("../../../data/HCE RDBES/CommercialEffort.csv")
+
+#try to select the right year
+tot1<-efbyc%>%
+	filter(year%in%2017:2022,grepl("27.",areaCode))%>%
+	group_by(country,area=substr(areaCode,1,4),year)%>%
+	summarise(dasbyc=sum(daysAtSeaF,na.rm=T),
+		  nbbyc=sum(vesselsF,na.rm=T))
+tot2<-efmix%>%
+	filter(Year%in%2017:2022,grepl("27.",Area))%>%
+	group_by(country=Country,area=substr(Area,1,4),year=Year)%>%
+	summarise(dasmix=sum(DaysAtSea,na.rm=T),
+		  nbmix=sum(NoVessels,na.rm=T))
+tot3<-efrdb%>%
+	filter(Year%in%2017:2022,grepl("27.",Area))%>%
+	group_by(country,area=substr(Area,1,4),year=Year)%>%
+	summarise(dasrdb=sum(as.numeric(DaysAtSea),na.rm=T),
+		  nbrdb=NA)
+tot4<-efrdbes%>%
+	filter(CEyear%in%2017:2022,grepl("27.",CEarea))%>%
+	group_by(country=CEvesselFlagCountry,area=substr(CEarea,1,4),CEyear)%>%
+	summarise(dasrdbes=sum(CEofficialDaysAtSea,na.rm=T),
+		  nbrdbes=sum(CEnumberOfUniqueVessels,na.rm=T))
+
+totall<-full_join(full_join(full_join(tot1,tot2),tot3),tot4)%>%
+	transmute(country,area,year,dasbyc,dasmix,dasrdb,dasrdbes)
+rez1<-totall%>%
+	tidyr::pivot_longer(4:7)%>%
+	mutate(value=ifelse(value==0,NA,value))%>%
+	filter(!is.na(country))
+
+plt<-ggplot(rez1,aes(x=area,y=value,color=name,fill=name))+
+	geom_bar(stat="identity",position=position_dodge())+
+	facet_grid(country~year,scale="free")+
+	scale_y_log10()+
+	theme_bw()+
+	theme(axis.text.x=element_text(angle=90,vjust=0.5,hjust=1))+
+	xlab("Total days at sea")
+	
+	
+#monitoring methods overview
+monmethall<-read.taf("data/monmethall.csv")
+plt<-ggplot(monmethall,aes(x=year,y=reldas,
+			    stratum=monmethname,
+			    alluvium=monmethname,
+			    fill=monmethname,
+			    label=monmethname))+
+	geom_flow(stat="alluvium")+
+	geom_stratum()+
+	theme_bw()+
+	labs(fill="Monitoring method")+
+	ylab("Proportion of annual DAS by monitoring method (%)")
+taf.png("output/monitoring_method_overview.png")
+print(plt)
+
+
+wb<-createWorkbook()
+addWorksheet(wb,1)
+writeData(wb,1,totall)
+saveWorkbook(wb,file="output/testeffort.xlsx",overwrite=T)
+
+
+
+efmix%>%filter(Year==2022)%>%
+	group_by(country=Country)%>%summarise(ef1=sum(DaysAtSea))%>%
+	ungroup()
+D1%>%filter(year==2022,country%in%c("FR","IE"),tblUploadID==155)%>%
+	group_by(country)%>%summarise(ef2=sum(daysAtSeaF))%>%
+	ungroup()
+u1<-efmix%>%filter(Year==2022)%>%
+	group_by(country=Country,area=substr(Area,1,6))%>%summarise(ef1=sum(DaysAtSea))%>%
+	ungroup()
+u2<-D1%>%filter(year==2022,country%in%c("FR","IE"),tblUploadID==187)%>%
+	group_by(country,area=substr(areaCode,1,6))%>%summarise(ef2=sum(daysAtSeaF))%>%
+	ungroup()
+u12<-full_join(u1,u2)
+
+u1
+#pb effort fr
+pipo<-D1%>%filter(country=="FR")
+uu<-pipo%>%group_by(tblUploadID,year,quarter,month,areaType,areaCode,metierL3,metierL4,metierL5,metierL6,vesselLengthRange)%>%mutate(n=n())
+
+
+
 
 # read and simplify country codes tables
 ctrycodes<-read.taf(taf.data.path("ctrycodes.csv")) %>%

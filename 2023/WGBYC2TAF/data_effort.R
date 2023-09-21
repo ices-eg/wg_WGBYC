@@ -60,7 +60,7 @@ tot3<-efrdb%>%
 		  nbrdb=NA)
 tot4<-efrdbes%>%
 	filter(CEyear%in%2017:2022,grepl("27.",CEarea))%>%
-	group_by(country=CEvesselFlagCountry,area=substr(CEarea,1,4),CEyear)%>%
+	group_by(country=CEvesselFlagCountry,area=substr(CEarea,1,4),year=CEyear)%>%
 	summarise(dasrdbes=sum(CEofficialDaysAtSea,na.rm=T),
 		  nbrdbes=sum(CEnumberOfUniqueVessels,na.rm=T))
 
@@ -77,8 +77,75 @@ plt<-ggplot(rez1,aes(x=area,y=value,color=name,fill=name))+
 	scale_y_log10()+
 	theme_bw()+
 	theme(axis.text.x=element_text(angle=90,vjust=0.5,hjust=1))+
-	xlab("Total days at sea")
+	ylab("Total days at sea")
+taf.png("output/effort_check.png")
+print(plt)
+dev.off()
 	
+
+#details in area 7 and 8
+tot1<-efbyc%>%
+	filter(year%in%2017:2022,grepl("27.",areaCode))%>%
+	group_by(area=substr(areaCode,1,6),year)%>%
+	summarise(dasbyc=sum(daysAtSeaF,na.rm=T),
+		  nbbyc=sum(vesselsF,na.rm=T))
+tot2<-efmix%>%
+	filter(Year%in%2017:2022,grepl("27.",Area))%>%
+	group_by(area=substr(Area,1,6),year=Year)%>%
+	summarise(dasmix=sum(DaysAtSea,na.rm=T),
+		  nbmix=sum(NoVessels,na.rm=T))
+tot3<-efrdb%>%
+	filter(Year%in%2017:2022,grepl("27.",Area))%>%
+	group_by(area=substr(Area,1,6),year=Year)%>%
+	summarise(dasrdb=sum(as.numeric(DaysAtSea),na.rm=T),
+		  nbrdb=NA)
+tot4<-efrdbes%>%
+	filter(CEyear%in%2017:2022,grepl("27.",CEarea))%>%
+	group_by(area=substr(CEarea,1,6),CEyear)%>%
+	summarise(dasrdbes=sum(CEofficialDaysAtSea,na.rm=T),
+		  nbrdbes=sum(CEnumberOfUniqueVessels,na.rm=T))
+
+totall<-full_join(full_join(full_join(tot1,tot2),tot3),tot4)%>%
+	transmute(area,year,dasbyc,dasmix,dasrdb,dasrdbes)%>%
+	filter(grepl("27.3.|27.4.|27.5.|27.6.|27.7.|27.8.|27.9.",area))
+#some stat info
+
+rez1<-totall%>%
+	tidyr::pivot_longer(3:6)%>%
+	mutate(value=ifelse(value==0,NA,value))
+
+plt<-ggplot(rez1,aes(x=area,y=value,color=name,fill=name))+
+	geom_bar(stat="identity",position=position_dodge())+
+	facet_grid(year~substr(area,1,4),scale="free")+
+	scale_y_log10()+
+	theme_bw()+
+	theme(axis.text.x=element_text(angle=90,vjust=0.5,hjust=1))+
+	ylab("Total days at sea")
+plt
+
+taf.png("output/effort_check_area.png")
+print(plt)
+dev.off()
+
+statinfo<-totall%>%
+	mutate(diffmix=100*(dasbyc-dasmix)/dasbyc,
+	       diffrdb=100*(dasbyc-dasrdb)/dasbyc,
+	       diffrdbes=100*(dasbyc-dasrdbes)/dasbyc)
+rez1<-statinfo%>%
+	select(area,year,diffmix,diffrdb,diffrdbes)%>%
+	tidyr::pivot_longer(3:5)
+
+plt<-ggplot(rez1%>%filter(year==2021),aes(x=name,y=value,color=name,fill=name))+
+	geom_bar(stat="identity",position=position_dodge())+
+	facet_wrap(~area,scale="free")+
+	theme_bw()+
+	theme(axis.text.x=element_text(angle=90,vjust=0.5,hjust=1))+
+	ylab("Difference from WGBYC total DAS (%)")
+plt
+
+taf.png("output/effort_check_area_perc.png")
+print(plt)
+dev.off()
 	
 #monitoring methods overview
 monmethall<-read.taf("data/monmethall.csv")
@@ -92,8 +159,6 @@ plt<-ggplot(monmethall,aes(x=year,y=reldas,
 	theme_bw()+
 	labs(fill="Monitoring method")+
 	ylab("Proportion of annual DAS by monitoring method (%)")
-taf.png("output/monitoring_method_overview.png")
-print(plt)
 
 
 wb<-createWorkbook()

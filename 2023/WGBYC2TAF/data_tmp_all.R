@@ -203,6 +203,9 @@ write.taf(monmethecoregion,dir="data")
 	dev.off()
 
 
+
+
+
 #green table
 print("green table")
 greentableD1<-D1%>%
@@ -435,5 +438,43 @@ wb<-createWorkbook()
 addWorksheet(wb,1)
 writeData(wb,1,tab123)
 saveWorkbook(wb,file="output/TOR_A_cool_effort_shorter_table.xlsx",overwrite=T)
+
+
+#another plot for tor A
+#nb of incident by classname and monitoring method
+tab2<-D2%>%
+	group_by(monmethname,year,monitoringMethod)%>%
+	summarise(dasobs=sum(daysAtSeaOb,na.rm=T))%>%
+	ungroup()
+tab3<-D3%>%
+	mutate(classname=ifelse(is.na(classname),"Reptiles",classname))%>%
+	mutate(classname=ifelse(classname%in%c("Aves","Reptiles","Mammalia","Elasmobranchii"),classname,"Other"))%>%
+	group_by(year,monitoringMethod,classname)%>%
+	summarise(nbspp=n_distinct(species),
+		  nb=sum(individualsWithPingers,individualsWithoutPingers,na.rm=T),
+		  inc=sum(incidentsWithPingers,incidentsWithoutPingers,na.rm=T))%>%
+	ungroup()
+tab23<-full_join(tab2,tab3)%>%filter(!is.na(classname))
+rez<-tab23%>%
+	transmute(monmethname,year,classname,inc)
+	plt<-ggplot(rez,aes(x=year,y=inc,
+			    stratum=monmethname,
+			    alluvium=monmethname,
+			    fill=monmethname,
+			    label=monmethname))+
+	geom_flow(stat="alluvium")+
+	geom_stratum()+
+	facet_wrap(~classname,scale="free")+
+	theme_bw()+
+	theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+	labs(fill="Monitoring method")+
+	ggtitle(i)+
+	ylab("Total number of incidents")
+
+	filename<-paste0("output/monitoring_method_classname.png")
+	print(filename)
+	taf.png(filename)
+	print(plt)
+	dev.off()
 
 

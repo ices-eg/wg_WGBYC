@@ -477,3 +477,45 @@ rez<-tab23%>%
 	dev.off()
 
 
+
+#another plot for tor A
+#nb of incident by classname and monitoring method by ecoregion
+tab2<-D2%>%
+	group_by(monmethname,year,monitoringMethod,ecoregion)%>%
+	summarise(dasobs=sum(daysAtSeaOb,na.rm=T))%>%
+	ungroup()
+tab3<-D3%>%
+	mutate(classname=ifelse(is.na(classname),"Reptiles",classname))%>%
+	mutate(classname=ifelse(classname%in%c("Aves","Reptiles","Mammalia","Elasmobranchii"),classname,"Other"))%>%
+	group_by(year,monitoringMethod,classname,ecoregion)%>%
+	summarise(nbspp=n_distinct(species),
+		  nb=sum(individualsWithPingers,individualsWithoutPingers,na.rm=T),
+		  inc=sum(incidentsWithPingers,incidentsWithoutPingers,na.rm=T))%>%
+	ungroup()
+tab23<-full_join(tab2,tab3)%>%filter(!is.na(classname))
+rez<-tab23%>%
+	transmute(monmethname,year,classname,ecoregion,inc)%>%
+	mutate(ecoregion=sub(" ","\n",ecoregion))
+
+	plt<-ggplot(rez,aes(x=year,y=inc,
+			    stratum=monmethname,
+			    alluvium=monmethname,
+			    fill=monmethname,
+			    label=monmethname))+
+	geom_flow(stat="alluvium")+
+	geom_stratum()+
+	facet_grid(ecoregion~classname,scale="free")+
+	theme_bw()+
+	scale_y_log10()+
+	theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+	      strip.text.y = element_text(angle = 0,size=6))+
+	labs(fill="Monitoring method")+
+	ylab("Total number of incidents")
+
+	filename<-paste0("output/monitoring_method_classname_ecoregion.png")
+	print(filename)
+	taf.png(filename)
+	print(plt)
+	dev.off()
+
+

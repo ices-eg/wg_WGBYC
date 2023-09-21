@@ -468,7 +468,6 @@ rez<-tab23%>%
 	theme_bw()+
 	theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
 	labs(fill="Monitoring method")+
-	ggtitle(i)+
 	ylab("Total number of incidents")
 
 	filename<-paste0("output/monitoring_method_classname.png")

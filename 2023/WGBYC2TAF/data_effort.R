@@ -81,6 +81,54 @@ plt<-ggplot(rez1,aes(x=area,y=value,color=name,fill=name))+
 taf.png("output/effort_check.png")
 print(plt)
 dev.off()
+
+
+#by gear 
+tot1<-efbyc%>%
+	filter(year%in%2017:2022,grepl("27.",areaCode))%>%
+	group_by(gear=metierL4,,area=substr(areaCode,1,4),year)%>%
+	summarise(dasbyc=sum(daysAtSeaF,na.rm=T),
+		  nbbyc=sum(vesselsF,na.rm=T))
+tot2<-efmix%>%
+	filter(Year%in%2017:2022,grepl("27.",Area))%>%
+	separate(IntercatchMetierTag,into=c("gear"))%>%
+	group_by(gear,area=substr(Area,1,4),year=Year)%>%
+	summarise(dasmix=sum(DaysAtSea,na.rm=T),
+		  nbmix=sum(NoVessels,na.rm=T))
+tot3<-efrdb%>%
+	filter(Year%in%2017:2022,grepl("27.",Area))%>%
+	separate(FishingActivityCategoryEuropeanLvl5,into=c("gear"))%>%
+	group_by(gear,area=substr(Area,1,4),year=Year)%>%
+	summarise(dasrdb=sum(as.numeric(DaysAtSea),na.rm=T),
+		  nbrdb=NA)
+tot4<-efrdbes%>%
+	filter(CEyear%in%2017:2022,grepl("27.",CEarea))%>%
+	separate(CEmetier6,into=c("gear"))%>%
+	group_by(gear,area=substr(CEarea,1,4),year=CEyear)%>%
+	summarise(dasrdbes=sum(CEofficialDaysAtSea,na.rm=T),
+		  nbrdbes=sum(CEnumberOfUniqueVessels,na.rm=T))
+totall<-full_join(full_join(full_join(tot1,tot2),tot3),tot4)%>%
+	transmute(gear,area,year,dasbyc,dasmix,dasrdb,dasrdbes)
+rez1<-totall%>%
+	tidyr::pivot_longer(4:7)%>%
+	mutate(value=ifelse(value==0,NA,value))%>%
+	filter(!is.na(gear),!gear%in%c("Offshore","Inshore"))
+
+plt<-ggplot(rez1,aes(x=area,y=value,color=name,fill=name))+
+	geom_bar(stat="identity",position=position_dodge())+
+	facet_grid(gear~year,scale="free")+
+	scale_y_log10()+
+	theme_bw()+
+	theme(axis.text.x=element_text(angle=90,vjust=0.5,hjust=1))+
+	theme(strip.text.y = element_text(angle=0))+
+	ylab("Total days at sea")
+ggsave("output/effort_check_gear.png")
+
+
+taf.png("output/effort_check_gear.png")
+print(plt)
+dev.off()
+
 	
 
 #details in area 7 and 8

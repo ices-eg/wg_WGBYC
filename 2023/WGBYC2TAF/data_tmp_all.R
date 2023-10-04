@@ -151,7 +151,19 @@ monmethgear<-D2%>%group_by(monmethname,ecoregion,L3name,year)%>%
 write.taf(monmethgear,dir="data")
 
 #monitoring methods: ecoregion/gear view
+monmethgear1<-D2%>%group_by(monmethname,ecoregion,L3name,year)%>%
+	summarise(das=sum(daysAtSeaOb,na.rm=T),.groups="drop")%>%
+	filter(!monmethname%in%c("Logbook","Port observers"))
+monmethgear2<-monmethgear1%>%
+	mutate(L3name="All metier")%>%
+	group_by(monmethname,ecoregion,L3name,year)%>%
+	summarise(das=sum(das,na.rm=T),.groups="drop")
+monmethgear<-rbind(monmethgear1,monmethgear2)%>%
+	mutate(monmethname=as.factor(monmethname))
+
+write.taf(monmethgear,dir="data")
 monmethgear<-read.taf("data/monmethgear.csv")
+
 listecoregion<-na.omit(unique(monmethgear$ecoregion))
 for(i in listecoregion){
 	tmp<-monmethgear[monmethgear$ecoregion==i,]%>%

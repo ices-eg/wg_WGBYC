@@ -3,17 +3,17 @@ title: 'Quality checks'
 author: ''
 date: ''
 output: 
-  officedown::rdocx_document: default
   word_document:
     number_sections: yes
     reference_docx: './boot/data/reportTemplate.docx'
-  bookdown::word_document2: default
-bibliography: '/Users/moi/Zotero/exportdb/My Library.bib'
-csl: './ices.csl'
 ---
 
 ```{r compile, include=FALSE,eval=FALSE}
-rmarkdown::render("WGBYC_QC.Rmd",clean=F)
+#  bookdown::word_document2: default
+rmarkdown::render("output_qc.Rmd",clean=F)
+  #officedown::rdocx_document: default
+#bibliography: '/Users/moi/Zotero/exportdb/My Library.bib'
+#csl: './ices.csl'
 ```
 
 # Rationale
@@ -25,60 +25,9 @@ WGBYC data are accessed using the ICES API in order to minimize the
 data manipultion time and to avoid the error associated with data formatting and
 reading.
 
-## Software
+## Data and reproducibility
 
-Analyses are carried out using the R environment [@r2012].
-R[^noteR] is a free software environment for statistical computing
-and graphics. The reproducibility of the results presented in this report
-relies on the use of a dialect of the Mardown language called Pandoc for word
-processing using the Knitr R package.
-Markdown is a plain text formatting syntax designed so that it can optionally be
-converted to HTML using a tool by the same name.
-Pandoc[^noteMd] is a Markdown dialect which extends the conversion capability to
-word processing file (docx, doc and odt) and pdf, among other formats.
-Pandoc understands a number of markdown syntax extensions, including
-document metadata (title, author, date), footnotes, tables, figures and
-references.
-Knitr[^noteKnitr] is an R package (a set of functions extending the R
-capabilities).
-With this package, the R code used to process and analyze the data
-is included in the report. Results are then produced
-dynamically. This framework has demonstrated the capacity to improve
-the transparency and the reproducibility of the analyses [@baumer2014].
-
-[^noteR]: <http://www.r-project.org/>.
-
-[^noteMd]: <http://johnmacfarlane.net/pandoc/>.
-
-[^noteKnitr]: <http://yihui.name/knitr/>.
-
-## Data
-
-The WGBYC database was accessed using the API provided by ICES. Following this
-approach, the data are requested and analyzed with the most recent version of
-the information available. The following R code is used to access the database :
-
-```{r dataaccess,eval=F,include=T}
-	# read the data from ices API
-	# library
-	library(httr)
-	library(icesConnect) #ask a token using ices_token
-	library(jsonlite)
-	# link to the WGBYC data table
-	linkD1<-"https://bycatch.ices.dk/api/GetD1_Fishing_effort"
-	linkD2<-"https://bycatch.ices.dk/api/GetD2_Bycatch_monitoring_effort"
-	linkD3<-"https://bycatch.ices.dk/api/GetD3_BycatchEvent"
-	# get the data and convert JSON info to data.frame oject 
-	resp1<-ices_get_jwt(linkD1,username="username_here")  
-	D1<-content(resp1,as="text")
-	D1<-fromJSON(D1)
-	resp2<-ices_get_jwt(linkD2,username="username_here")  
-	D2<-content(resp2,as="text")
-	D2<-fromJSON(D2)
-	resp3<-ices_get_jwt(linkD3,username="username_here")  
-	D3<-content(resp3,as="text")
-	D3<-fromJSON(D3)
-```
+Data used in this report were accessed following the TAF guideline.
 
 ```{r setup, include=FALSE}
 #knitr option
@@ -113,305 +62,117 @@ figcapannex <- captioner(prefix = "Figure A",infix=".",levels=1,auto_space=FALSE
 
 ```{r data}
 #get some ICES vocab stuff
-if(F){
-	uu<-findCodeType("Country", full = TRUE)
-	View(uu)
-	codes <- getCodeList("ISO_3166")
-	saveRDS(codes,file="../data/codes/codes_country.rds")
-	codes <- getCodeList("GearGroup")
-	saveRDS(codes,file="../data/codes/codes_geargroup.rds")
-}
-codctry<-readRDS("../data/codes/codes_country.rds")
-codgear<-readRDS("../data/codes/codes_geargroup.rds")%>%
-	transmute(metierL3=Key,metierL3long=Description)
-#nice country name
-codctry$Description<-paste0(toupper(substr(codctry$Description,1,1)),tolower(substr(codctry$Description,2,nchar(codctry$Description))))
-#read ecoregion correspondance table
-div2ecor<-read.csv("../data/icesdb/ICES_Area_to_EcoRegion.csv")
-#aa<-div2ecor$Ecoregion%>%unique
+library(icesTAF)
+#read and load the data
+source("data.R")
+
 #a fct to shorten ecor for ggplot2
 fctshoreco<-function(a){sub("and the","and the\n",a)}
 
-# read data
-listfich<-dir(path="../data/",full=T,all=T,rec=T)
-pathD1<-listfich[grepl("D1_",listfich)]
-pathD2<-listfich[grepl("D2_",listfich)]
-pathD3<-listfich[grepl("D3_",listfich)]
-pathefrdb<-listfich[grepl("Effort ",listfich)]
-D1old<-read.csv(pathD1,na.strings="NULL")#%>%filter(Year>=2017,Year<2022)
-D2old<-read.csv(pathD2,na.strings="NULL")#%>%filter(Year>=2017,Year<2022)
-D3old<-read.csv(pathD3,na.strings="NULL")#%>%filter(Year>=2017,Year<2022)
-efrdb<-read.csv(pathefrdb,na.strings="NULL")
-
-# local versus GET to speed up process and in case of offline works
-if(F){
-	#tokenize data exchange
-	library(icesConnect) #ask a token using  ices_token
-	ices_token(username="dubroca",password="lbuz4956LB",refresh=T)
-	# read the data from ices API
-	library(httr)
-	library(jsonlite)
-	linkD1<-"https://bycatch.ices.dk/api/GetD1_Fishing_effort"
-	linkD2<-"https://bycatch.ices.dk/api/GetD2_Bycatch_monitoring_effort"
-	linkD3<-"https://bycatch.ices.dk/api/GetD3_BycatchEvent"
-	# test
-#	options(icesSAG.use_token=T)
-	resp1<-ices_get_jwt(linkD1,username="dubroca",verbose=T,quiet=F)  
-	D1<-content(resp1,as="text")
-	D1<-fromJSON(D1)
-	resp2<-ices_get_jwt(linkD2,username="dubroca",verbose=T)  
-	D2<-content(resp2,as="text")
-	D2<-fromJSON(D2)
-	resp3<-ices_get_jwt(linkD3,username="dubroca")  
-	D3<-content(resp3,as="text")
-	D3<-fromJSON(D3)
-	save(D1,D2,D3,file="../data/icesdb/D123.rdata")
-
-}else{
-	load("../data/icesdb/D123.rdata")
-}
-
-#filter data & add country name
-D1<-D1%>%
-	filter(year>=2017,year<=2022)%>%
-	left_join(codctry,by=c("country"="Key"))%>%
-	group_by(Country=paste0(Description," (",country,")"),year)%>%
-	ungroup()
-D2<-D2%>%
-	filter(year>=2017,year<=2022)%>%
-	left_join(codctry,by=c("country"="Key"))%>%
-	group_by(Country=paste0(Description," (",country,")"),year)%>%
-	ungroup()
-D3<-D3%>%
-	filter(year>=2017,year<=2022)%>%
-	left_join(codctry,by=c("country"="Key"))%>%
-	group_by(Country=paste0(Description," (",country,")"),year)%>%
-	ungroup()
-
-#read geographical data
-if(F){
-	pipo<-dir("../data/geo/ICES_areas",patt=".shp",full=T)[1]
-	div <- st_read(pipo)%>%transmute(area=Area_Full)#,geometry=geometry)
-	pipo<-dir("../data/geo/ICES_ecoregions",patt=".shp",full=T)[1]
-	ecor <- st_read(pipo)%>%transmute(Ecoregion)#, crs = 4267, quiet = TRUE)
-	div<-div%>%st_transform(st_crs(ecor))
-	#add complete missing div
-	listdiv<-c("27\\.1\\.","27.2.a","27.2.b","27.3.a","27.3.d.28","27.5.a","27.5.b","27.5.b.1","27.6.b","27.7.j","27.7.c","27.7.k","27.8.d","27.8.e","27.9.b",
-	"27.10","27.10.a","27.12.a","27.14.b")
-	for(iddiv in listdiv){
-		#iddiv<-"27.5.a"
-	pipo<-div%>%filter(grepl(iddiv,area))
-	pipo<-st_as_sf(data.frame(area=iddiv,geometry=st_combine(pipo)))
-	div<-rbind(div,pipo)
-	}
-	#div%>%filter(grepl("27\\.2\\.",area))
-	#div%>%filter(grepl("27.12.",area))
-	#add ecor to div
-	#geo check 
-	#geoD1<-D1%>%transmute(code=areaType,area=tolower(areaCode))%>%distinct()
-	#geoD1<-left_join(geoD1,div)
-	#View(%>%filter(code=="ICESArea"))
-	#geoEFRDB<-efrdb%>%transmute(area=tolower(Area))%>%distinct()
-	#geoEFRDB<-left_join(geoEFRDB,div)
-	#View(geoEFRDB%>%filter(is.na(Ecoregion),grepl("27.",area)))
-	div<-st_join(div,ecor,largest=T)
-	save(div,ecor,file="../data/geo/divecor.rdata")
-}else{
-	load("../data/geo/divecor.rdata")
-}
-#read MIXFISH data
-print(load("../data/WGMIXFISH/WGMIXFISH_effort_IE_FR_2018-2022_for_WGBYC.Rdata"))
-efmix<-ef
-rm(ef)
-
-
-
 ```
 
-```{r note}
-#meeting QC 29/08/2023
-#do a summary of available data
-#dont use logbook observation
-#Italy : do we delete the last one
-#estonia, portugal, finland, check logbook 
-#norway : only 2 species reported e metier ask why ?
-#danish EM data : same data EM vs logbook double the daa
-
-#check presence of vessel length
-D1%>%filter(year==2022)%>%
-	group_by(vesselLengthRange,country)%>%summarise(n=n())%>%
-	tidyr::pivot_wider(values_from=n,names_from=vesselLengthRange)%>%
-	flextable
-
-#no data less than 12 m for BE
-
-- D3 check species presence: 
-
-- IndividualswithPinger, tuhourpinger 99999 -> BE and DE
-
-- check number of trips versus DaS  
-
-finland D1 L3TB finland
-
-D1%>%filter(year==2022,country=="FI",metierL3=="L3TB")%>%head
-D2%>%filter(year==2022,country=="FI",metierL3=="L3TB")%>%dim()
-
-
-D1%>%filter(year==2022,metierL3=="L3TB")%>%head
-D2%>%filter(year==2022,country=="FI",metierL3=="L3TB")%>%dim()
-
-
-
-D3%>%group_by(country,monitoringMethod)%>%
-	summarise(year=paste(unique(sort(substr(year,3,4))),collapse=","))%>%
-	tidyr::pivot_wider(names_from=monitoringMethod,values_from=year,values_fill=".")
-
-D3%>%filter(country=="HR")
-
-D1%>%group_by(tblUploadID,country)%>%
-	summarise(year=paste(unique(sort(substr(year,3,4))),collapse=","))%>%
-	tidyr::pivot_wider(names_from=tblUploadID,values_from=year,values_fill=".")%>%
-	filter(country=="FR")%>%
-	t()
-D1%>%filter(tblUploadID%in%c(155,177))
-#2741705 total days at sea
-
-- elasmobranch and species check : ecoregions and species : check with GFCM
-
-
-u1<-D1%>%filter(year==2022)%>%group_by(country)%>%summarise(totef1=sum(daysAtSeaF,na.rm=T))
-u2<-D2%>%filter(year==2022)%>%group_by(country)%>%summarise(totef2=sum(daysAtSeaOb,na.rm=T))
-u12<-full_join(u1,u2)%>%mutate(test=abs(totef1-totef2))
-#check if daysatsea f is > daysatsea obs
-
-D3%>%filter(country=="LT")
-
-
-Type of sampling in
-
-D2%>%filter(year==2022)%>%group_by(country,monitoringMethod)%>%
-	summarise(n=n())%>%
-	tidyr::pivot_wider(values_from=n,names_from=monitoringMethod)%>%
-	flextable()
-
-
-
-```
-
-
-```{r greentable,eval=T}
+```{r generaltable,eval=T}
 #{{{
 greentableD1<-D1%>%
-	filter(year>=2017,year<=2022)%>%
-	group_by(Country,year)%>%
+	group_by(ctryname,year)%>%
 	summarise(n=n())%>%
 	mutate(year=paste0("D1_",year))%>%
 	tidyr::pivot_wider(values_from=n,names_from=year,names_sort=T)
 greentableD2<-D2%>%
-	filter(year>=2017,year<=2022)%>%
-	group_by(Country,year)%>%
+	group_by(ctryname,year)%>%
 	summarise(n=n())%>%
 	mutate(year=paste0("D2_",year))%>%
 	tidyr::pivot_wider(values_from=n,names_from=year,names_sort=T)
 greentableD3<-D3%>%
-	filter(year>=2017,year<=2022)%>%
-	group_by(Country,year)%>%
+	group_by(ctryname,year)%>%
 	summarise(n=n())%>%
 	mutate(year=paste0("D3_",year))%>%
 	tidyr::pivot_wider(values_from=n,names_from=year,names_sort=TRUE)
 greentable<-full_join(full_join(greentableD1,greentableD2),greentableD3)%>%
 	ungroup()%>%data.frame()
 
-#greentable bis check if at least one values is present in "important field"
-# daysAtSeaF : at least 1 value not empty
-greentableD1check<-D1%>%
-	filter(year>=2017,year<=2022)%>%
-	group_by(Country,year)%>%
-	summarise(na1=sum(daysAtSeaF))%>%
-	ungroup()%>%
-	mutate(year=paste0("D1_",year)) %>%
-	tidyr::pivot_wider(values_from=na1,names_from=year,names_sort=T,values_fill=-9)
-# daysAtSeaOb : at least 1 value not empty
-greentableD2check<-D2%>%
-	filter(year>=2017,year<=2022)%>%
-	group_by(Country,year)%>%
-	summarise(na1=sum(daysAtSeaOb))%>%
-	ungroup()%>%
-	mutate(year=paste0("D2_",year)) %>%
-	tidyr::pivot_wider(values_from=na1,names_from=year,names_sort=T,values_fill=-9)
-# at least numerical value (zero included) in incidents column
-greentableD3check<-D3%>%
-	mutate(nbinc=incidentsWithPingers+incidentsWithoutPingers)%>%
-	filter(year>=2017,year<=2022)%>%
-	group_by(Country,year)%>%
-	summarise(nbinc=sum(nbinc))%>%
-	ungroup()%>%
-	mutate(year=paste0("D3_",year)) %>%
-	tidyr::pivot_wider(values_from=nbinc,names_from=year,names_sort=T,values_fill=-9)
-greentablecheck<-full_join(full_join(greentableD1check,greentableD2check),greentableD3check)%>%
-	ungroup()%>%data.frame()
-
-#build up a submission table from old D123
-subtableD1<-D1old%>%
-	filter(Year>=2017,Year<=2022)%>%
-	left_join(codctry,by=c("Country"="Key"))%>%
-	group_by(Country=paste0(Description," (",Country,")"),Year)%>%
-	summarise(n=paste0(sort(unique(SubmissionYear)),collapse=","))%>%
-	mutate(Year=paste0("D1_",Year))%>%
-	tidyr::pivot_wider(values_from=n,names_from=Year,names_sort=T)
-subtableD2<-D2old%>%
-	filter(Year>=2017,Year<=2022)%>%
-	left_join(codctry,by=c("Country"="Key"))%>%
-	group_by(Country=paste0(Description," (",Country,")"),Year)%>%
-	summarise(n=paste0(sort(unique(SubmissionYear)),collapse=","))%>%
-	mutate(Year=paste0("D2_",Year))%>%
-	tidyr::pivot_wider(values_from=n,names_from=Year,names_sort=T)
-subtableD3<-D3old%>%
-	filter(Year>=2017,Year<=2022)%>%
-	left_join(codctry,by=c("Country"="Key"))%>%
-	group_by(Country=paste0(Description," (",Country,")"),Year)%>%
-	summarise(n=paste0(sort(unique(SubmissionYear)),collapse=","))%>%
-	mutate(Year=paste0("D3_",Year))%>%
-	tidyr::pivot_wider(values_from=n,names_from=Year,names_sort=T)
+#build up a submission table
+subtableD1<-D1%>%
+	group_by(ctryname,year)%>%
+	summarise(n=paste0(sort(unique(submissionYear)),collapse=","))%>%
+	mutate(year=paste0("D1_",year))%>%
+	tidyr::pivot_wider(values_from=n,names_from=year,names_sort=T)
+subtableD2<-D2%>%
+	group_by(ctryname,year)%>%
+	summarise(n=paste0(sort(unique(submissionYear)),collapse=","))%>%
+	mutate(year=paste0("D2_",year))%>%
+	tidyr::pivot_wider(values_from=n,names_from=year,names_sort=T)
+subtableD3<-D3%>%
+	group_by(ctryname,year)%>%
+	summarise(n=paste0(sort(unique(submissionYear)),collapse=","))%>%
+	mutate(year=paste0("D3_",year))%>%
+	tidyr::pivot_wider(values_from=n,names_from=year,names_sort=T)
 subtable<-full_join(full_join(subtableD1,subtableD2),subtableD3)%>%
 	ungroup()%>%data.frame()
-#identify no data info according to greentablecheck
+
+
+
+
 nametab<-names(greentable)[-1]
 nametab<-paste0(nametab,"='",substr(nametab,4,7),"'",collapse=",")
 nametab<-eval(parse(text=paste0("list(",nametab,")")))
-bgcolormat<-ifelse(is.na(greentable[,-1]),"white","darkgreen")
+nametab<-c(list(ctryname="Year of data"),nametab)
+bgcolormat<-ifelse(greentable[,-1]<0.00001,"white","darkgreen")
 charcolormat<-matrix("white",nrow=nrow(subtable),ncol=ncol(subtable)-1)
-charcolormat["2022"==subtable[,-1]]<-"yellow"
-charcolormat["2021,2022"==subtable[,-1]]<-"yellow"
-
+charcolormat["2024"==subtable[,-1]]<-"yellow"
+#charcolormat["2021,2023"==subtable[,-1]]<-"yellow"
 big_border<-fp_border(color="black", width = 2)
-#remove number 
+#remove number
 greentable[is.na(greentable)]<-0
 
-ftgreentable<-flextable(subtable)%>%
-	bg(j=2:ncol(greentable),bg=bgcolormat) %>%
+
+#param to fix column formatting
+nbcolyear<-(ncol(subtable)-1)/3
+posbigline<-c(1,nbcolyear+1,1+nbcolyear*2)
+
+
+ftgreentable<-flextable(greentable)%>%
+	bg(j=2:ncol(greentable),bg=bgcolormat)%>%
 	color(j=2:ncol(greentable),color=charcolormat) %>%
-	set_header_labels(values=nametab)%>%
+	set_header_labels(values=nametab) %>%
 	add_header_row(values=c("","Fishing Effort (D1 table)",
 				"Monitoring Effort (D2 table)",
-				"Bycatch Events (D3 table)"),colwidths=c(1,6,6,6))%>%
-	theme_box() %>%
+				"Bycatch Events (D3 table)"),colwidths=c(1,nbcolyear,nbcolyear,nbcolyear))%>%
+	theme_box()%>%
 	align(align="center",part="header")%>%
 	align(align="center",part="body")%>%
-	vline(j=c(1,6,11),border=big_border)%>%
+	vline(j=posbigline,border=big_border)%>%
 	fontsize(part="all",size=6)%>%
 	autofit(add_w=0,add_h=0)
+
+pltD4<-flextable(D4)%>%
+	theme_box()%>%
+	align(align="center",part="header")%>%
+	align(align="center",part="body")%>%
+	fontsize(part="all",size=6)%>%
+	autofit(add_w=0,add_h=0)
+
+#some stat for the text
+nbcountryD1<-D4%>%filter(submissionYear==2024,grepl("2023",yearsInFishingEffort))%>%nrow
+nbcountryD2<-D4%>%filter(submissionYear==2024,yearsInByCatchEvent==2023)%>%nrow
+yeardatacall<-unique(D4$submissionYear)
+
+
+#save as docx object
+#save_as_docx(ftgreentable,path='./output/greentable.docx',
+#	     pr_section=prop_section(
+#				page_size=page_size(orient="landscape"),
+#				page_margins=page_mar(bottom=0.1,top=.1,right=.1,left=.1,header=0,footer=0,gutter=0)
+#				)
+#		)
 #}}}
 ```
 
-# Table of responses by country – 2018 – 2022
+# Table of responses by country – 2018 – 2023
 
 
-ICES/WGBYC requested data from 27 countries through the 2022 data call. 
-26 countries responded and submitted data on fishing and sampling effort 
-and bycatch observations for 2022. 
-Bulgaria submitted data for the first time in 2022, providing data from 2019 to 2022. 
-Lithuania updated the 2019 data for this datacall. 
+ICES/WGBYC requested data from `r print(nbcountryD1)` countries through the `r yeardatacall` data call. 
+Bulgaria submitted updated data, providing data from 2019 to 2023. 
 A data submission was considered achieved if 
 at least one value of effort was reported in the fishing and monitoring effort tables. 
 For the bycatch events, only the presence of data was considered, 
@@ -421,9 +182,9 @@ The submission status and date are summarized in the table
 
 
 ```{r pltgreentable,fig.height=8,fig.width=7}
-print(ftgreentable)
+print(pltD4)
 ```
-`r figcap("greentable",caption="Year(s) of data submission by countries by year of data providing data to ICES WGBYC with data on fishing effort, observer effort (either days at sea or other measurement, e.g. effort per haul or set), and bycatch records. Green = Data submission received, White = no data received. The 2022 data submission is highlighted in yellow.")`
+`r figcap("greentable",caption="Summary of the data submitted in 2024 in the WGBYC database.")`
 
 # Observation methods evolution
 
@@ -435,32 +196,32 @@ of the TOR a.
 ```{r newt33}
 #{{{
 t33<-D2%>%
-	group_by(year,monitoringMethod)%>%
+	group_by(year,monmethname)%>%
 	summarise(das=sum(daysAtSeaOb,na.rm=T))%>%
 	ungroup()%>%
-	#group_by(monitoringMethod)%>%
 	group_by(year)%>%
 	mutate(tot=sum(das))%>%
 	ungroup()%>%
 	mutate(reldas=das/tot*100)%>%
-	mutate(monitoringMethod=as.factor(monitoringMethod))
+	mutate(monmethname=as.factor(monmethname))
 pltt33<-ggplot(t33,aes(x=year,
 	       y=reldas,
-	       stratum=monitoringMethod,
-	       alluvium=monitoringMethod,
-	       fill=monitoringMethod,
-	       label=monitoringMethod))+
+	       stratum=monmethname,
+	       alluvium=monmethname,
+	       fill=monmethname,
+	       label=monmethname))+
 	geom_flow(stat="alluvium")+
 	geom_stratum()+
-	geom_text(stat="stratum")+
+	#geom_text(stat="stratum")+
 	theme_bw()+
-	ylab("Proportion of the annual days at sea by monitoring methods (%)")
+	ylab("Proportion of the annual days at sea by monitoring methods (%)")+
+	labs(fill="Monitoring method")
 print(pltt33)
 #}}}
 ```
 
 `r figcap("pltt33",caption="Annual proportion of monitoring methods in days at sea from
-2017 to 2022 : at-sea-observers (SO), electronic monitoring (EM), port observers (PO), and vessel crew observers (VO), logbooks (LB, other (OTH).  ")`
+2017 to 2023.")`
 
 # Stability checks
 
@@ -476,39 +237,31 @@ Days at sea is the main effort analysed in this section.
 ```{r exploeff}
 #{{{
 ef1<-D1%>%
-	left_join(div2ecor,by=c("areaCode"="ICES_Area"))%>%
-	left_join(codgear)%>%
-	group_by(year,metierL3=metierL3long,Ecoregion)%>%
+	group_by(year,L3name,ecoregion)%>%
 	summarise(das=sum(daysAtSeaF,na.rm=T))%>%
 	ungroup()
 ef1bis<-D1%>%
-	left_join(div2ecor,by=c("areaCode"="ICES_Area"))%>%
-	left_join(codgear)%>%
-	group_by(year,month,metierL3=metierL3long,Ecoregion)%>%
+	group_by(year,L3name,ecoregion,month)%>%
 	summarise(das=sum(daysAtSeaF,na.rm=T))%>%
 	ungroup()
 ef2<-D2%>%
-	left_join(div2ecor,by=c("areaCode"="ICES_Area"))%>%
-	left_join(codgear)%>%
-	group_by(year,metierL3=metierL3long,Ecoregion,monitoringMethod)%>%
-	summarise(das=sum(daysAtSeaOb,na.rm=T))%>%
-	ungroup()
-ef2bis<-D2%>%
-	left_join(div2ecor,by=c("areaCode"="ICES_Area"))%>%
-	left_join(codgear)%>%
-	group_by(year,metierL3=metierL3long,Ecoregion)%>%
+	group_by(year,L3name,ecoregion,monmethname)%>%
 	summarise(dasobs=sum(daysAtSeaOb,na.rm=T))%>%
 	ungroup()
-ef12<-full_join(ef1,ef2bis)
+ef2bis<-D2%>%
+	group_by(year,L3name,ecoregion)%>%
+	summarise(dasobs=sum(daysAtSeaOb,na.rm=T))%>%
+	ungroup()
+ef12<-full_join(ef1,ef2)
 #}}}
 ```
 
 ```{r exploeffallcountry}
 #{{{
-idyear<-2022
+idyear<-2023
 plte1<-ggplot(ef1,aes(x=year-2000,y=das))+
 	geom_point()+
-	facet_grid(fctshoreco(Ecoregion)~sub(" ","\n",metierL3),scale="free")+
+	facet_grid(fctshoreco(ecoregion)~sub(" ","\n",L3name),scale="free")+
 	scale_y_log10()+
 	geom_smooth(method="lm")+
 	theme_bw()+
@@ -516,11 +269,11 @@ plte1<-ggplot(ef1,aes(x=year-2000,y=das))+
 	theme(strip.text.x.top= element_text(size=8))+
 	ylab("Days at sea (log 10 scale)")+xlab("year")
 plte1bis1<-ggplot(
-		  ef1bis%>%group_by(year,month=as.factor(month),Ecoregion)%>%summarise(das=sum(das)))+
+		  ef1bis%>%group_by(year,month=as.factor(month),ecoregion)%>%summarise(das=sum(das)))+
 	aes(x=month,y=das,fill=month)+
 	geom_bar(stat="identity")+
 	scale_y_log10()+
-	facet_grid(fctshoreco(Ecoregion)~year,scale="free")+
+	facet_grid(fctshoreco(ecoregion)~year,scale="free")+
 	theme_bw()+
 	theme(strip.text.y.right= element_text(angle = 0,size=8))+
 	ylab("Days at sea (log 10 scale)")+xlab("Month")
@@ -529,7 +282,7 @@ plte1bis2<-ggplot(ef1bis)+aes(x=month,y=das,color=year,group=year)+
 	geom_line()+
 	#geom_point(data= ef1bis%>%filter(is.na(month))%>%mutate(month=1),
 	#	   aes(x=month,y=das,color=year,group=year,shape=20))%>%
-	facet_grid(fctshoreco(Ecoregion)~sub(" ","\n",metierL3),scale="free")+
+	facet_grid(fctshoreco(ecoregion)~sub(" ","\n",L3name),scale="free")+
 	scale_y_log10()+
 	theme_bw()+
 	theme(strip.text.y.right= element_text(angle = 0,size=8))+
@@ -537,8 +290,8 @@ plte1bis2<-ggplot(ef1bis)+aes(x=month,y=das,color=year,group=year)+
 	ylab("Days at sea (log 10 scale)")+xlab("year")
 
 
-plte2<-ggplot(ef2,aes(x=year-2000,y=das,color=monitoringMethod))+
-	facet_grid(fctshoreco(Ecoregion)~sub(" ","\n",metierL3),scale="free")+
+plte2<-ggplot(ef2,aes(x=year-2000,y=dasobs,color=monmethname))+
+	facet_grid(fctshoreco(ecoregion)~sub(" ","\n",L3name),scale="free")+
 	scale_y_log10()+
 	geom_smooth(method="lm")+
 	theme_bw()+
@@ -549,7 +302,7 @@ plte2<-ggplot(ef2,aes(x=year-2000,y=das,color=monitoringMethod))+
 plte12<-ggplot(ef12%>%filter(is.finite(das)&is.finite(dasobs)),
 	       aes(x=das,y=dasobs,color=(year)))+
 	geom_point()+
-	facet_grid(fctshoreco(Ecoregion)~sub(" ","\n",metierL3),scale="free")+
+	facet_grid(fctshoreco(ecoregion)~sub(" ","\n",L3name),scale="free")+
 	scale_y_log10()+
 	scale_x_log10()+
 	geom_smooth(method="lm")+
@@ -571,17 +324,17 @@ gears (metier level 3) and ecoregion.
 ```{r plte1all,fig.height=8,fig.width=7}
 print(plte1)
 ```
-*`r figcap("plte1all",caption="Temporal evolution of the fishing effort by ecoregion and metier level 3 from 2017 to 2022. In blue, linear model highlight the temporal trends over the 5 years.")`*
+*`r figcap("plte1all",caption="Temporal evolution of the fishing effort by ecoregion and metier level 3 from 2017 to 2023. In blue, linear model highlight the temporal trends over the 5 years.")`*
 
 ```{r plte1bisi1,fig.height=8,fig.width=7}
 print(plte1bis1)
 ```
-*`r figcap("plte1all",caption="Monthly total of the fishing effort by ecoregion and year from 2017 to 2022.")`*
+*`r figcap("plte1all",caption="Monthly total of the fishing effort by ecoregion and year from 2017 to 2023.")`*
 
 ```{r plte1bis,fig.height=8,fig.width=7}
 print(plte1bis2)
 ```
-*`r figcap("plte1bis",caption="Month fishing effort by ecoregion and metier level 3 from 2017 to 2022. In blue, linear model highlight the temporal trends over the 5 years.")`*
+*`r figcap("plte1bis",caption="Month fishing effort by ecoregion and metier level 3 from 2017 to 2023. In blue, linear model highlight the temporal trends over the 5 years.")`*
 
 ## Observation effort 
 
@@ -592,7 +345,7 @@ gears (metier level 3) and ecoregion, and monitoring programs.
 ```{r plte2all,fig.height=8,fig.width=7}
 print(plte2)
 ```
-*`r figcap("plte2all",caption="Temporal evolution of the fishing effort by ecoregion and metier level 3 from 2017 to 2022 by monitoring program. In blue, linear model highlight the temporal trends over the 5 years.")`*
+*`r figcap("plte2all",caption="Temporal evolution of the fishing effort by ecoregion and metier level 3 from 2017 to 2023 by monitoring program. In blue, linear model highlight the temporal trends over the 5 years.")`*
 
 ## Fishing versus observation effort 
 
@@ -611,23 +364,17 @@ Some test on D3 table in relation to D2 and D1.
 
 ```{r bycatchstuff}
 ef1<-D1%>%
-	left_join(div2ecor,by=c("areaCode"="ICES_Area"))%>%
-	left_join(codgear)%>%
-	group_by(year,metierL3=metierL3long,Ecoregion)%>%
+	group_by(year,L3name,ecoregion)%>%
 	summarise(das=sum(daysAtSeaF,na.rm=T))%>%
 	ungroup()
 ef2<-D2%>%
-	left_join(div2ecor,by=c("areaCode"="ICES_Area"))%>%
-	left_join(codgear)%>%
-	group_by(year,metierL3=metierL3long,Ecoregion,monitoringMethod)%>%
+	group_by(year,L3name,ecoregion,monmethname)%>%
 	summarise(das=sum(daysAtSeaOb,na.rm=T))%>%
 	ungroup()
 b3<-D3%>%
-	left_join(div2ecor,by=c("areaCode"="ICES_Area"))%>%
-	left_join(codgear)%>%
 	mutate(n1=ifelse(is.na(incidentsWithPingers),0,1),
 		n2=ifelse(is.na(incidentsWithPingers),0,1))%>%
-	group_by(species,year,metierL3=metierL3long,Ecoregion)%>%
+	group_by(species,year,L3name,ecoregion)%>%
 	summarise(nb=n1+n2)%>%
 	ungroup() 
 
@@ -646,21 +393,15 @@ by country.
 ```{r exploeffbycountries}
 #{{{
 ef1<-D1%>%
-	left_join(div2ecor,by=c("areaCode"="ICES_Area"))%>%
-	left_join(codgear)%>%
-	group_by(country,year,metierL3=metierL3long,Ecoregion)%>%
+	group_by(ctryname,year,L3name,ecoregion)%>%
 	summarise(das=sum(daysAtSeaF,na.rm=T))%>%
 	ungroup()
 ef2<-D2%>%
-	left_join(div2ecor,by=c("areaCode"="ICES_Area"))%>%
-	left_join(codgear)%>%
-	group_by(country,year,metierL3=metierL3long,Ecoregion,monitoringMethod)%>%
+	group_by(ctryname,year,L3name,ecoregion,monmethname)%>%
 	summarise(das=sum(daysAtSeaOb,na.rm=T))%>%
 	ungroup()
 ef2bis<-D2%>%
-	left_join(div2ecor,by=c("areaCode"="ICES_Area"))%>%
-	left_join(codgear)%>%
-	group_by(country,year,metierL3=metierL3long,Ecoregion)%>%
+	group_by(ctryname,year,L3name,ecoregion)%>%
 	summarise(dasobs=sum(daysAtSeaOb,na.rm=T))%>%
 	ungroup()
 ef12<-full_join(ef1,ef2bis)
@@ -669,19 +410,16 @@ ef12<-full_join(ef1,ef2bis)
 
 ```{r prepexpand}
 #{{{
-listidcountry<-data.frame(id=sort(unique(D1$country)))%>%
-			  left_join(codctry%>%transmute(id=Key,name=Description))
+listidcountry<-D1%>%transmute(id=ctryname)%>%distinct()%>%arrange(id)
 rmd1<-knitr::knit_expand("expand_ef1.rmd", 
-			 idcountry=listidcountry$id[1],
-			 idname=listidcountry$name[1],
-			 idyear=2022)
+			 id=listidcountry$id[1],
+			 idyear=2023)
 rmd<-rmd1
     for(i in 2:nrow(listidcountry)){
     #for(i in 2:2){
     rmdtmp<-knitr::knit_expand("expand_ef1.Rmd",
-			 idcountry=listidcountry$id[i],
-			 idname=listidcountry$name[i],
-			 idyear=2022)
+			 id=listidcountry$id[i],
+			 idyear=2023)
     rmd<-paste0(rmd,rmdtmp,collapse="\n")
     }
 #}}}
@@ -701,94 +439,6 @@ This section describes the effort reported in the fishing effort table.
 
 Seven effort indicators can be reported to WGBYC, 2 of them being mandatory,
 only one is used here.
-
-
-## RDB versus WGBYC effort 
-
-The fishing effort reported in days at sea by countries and year are compared
-with the same effort reported in the Fishframe database. To avoid spurious differences,
-only data reported in the same ICES areas, year, quarter, geat and countries
-were matched. Over the five year, the effort reported in the RDB is 1.6 (2017) to 5.05 (2022)
-higher than the effort reported in the WGBYC D1 table.
-The figure `r figcap("pltqc1",display="num")` details the total annual
-fishing effort reported in days at sea from 2017 to 2022. 
-The figure `r figcap("pltqc0",display="num")` compares the fishing effort
-reported in WGBYC and in the RDB.
-
-```{r rdbvsD1}
-eD1<-D1%>%group_by(Country,year,quarter,quarter,area=areaCode,gear=metierL4)%>%
-	summarise(e1=sum(daysAtSeaF,na.rm=T))%>%
-	ungroup()
-#simplify Country name in eD1 to merge with eRDB
-eD1$Country<-substr(eD1$Country,1,nchar(eD1$Country)-5)
-eRDB<-efrdb%>%group_by(Country,year=Year,quarter=Quarter,area=Area,
-		       gear=sub("_","",substr(FishingActivityCategoryEuropeanLvl6,1,3)))%>%
-	summarise(eRDB=sum(DaysAtSea,na.rm=T))
-allef<-full_join(eD1,eRDB)%>%
-	#filter 27. area
-	filter(grepl("27.",area))
-
-allefall<-allef%>%
-	filter(grepl("27.",area))%>%
-	group_by(year)%>%
-	summarise(e1=sum(e1,na.rm=T),eRDB=sum(eRDB,na.rm=T))%>%
-	mutate(def=(e1/eRDB))
-
-
-
-
-countryRDB<-eRDB%>%
-	ungroup()%>%transmute(Country)%>%distinct()
-countryD1<-eD1%>%
-	ungroup()%>%transmute(Country)%>%distinct()
-countryall<-inner_join(countryRDB,countryD1)%>%pull(Country)
-
-pltqc0<-ggplot(allef,aes(x=e1,y=eRDB,color=gear,group=gear))+
-	geom_point()+
-	facet_grid(Country~year,scale="free")+
-	scale_y_log10()+
-	scale_x_log10()+
-	xlab("WGBYC effort (DAS")+
-	ylab("RDB effort (DAS)")+
-	theme_bw()+
-	theme(strip.text.y.right= element_text(angle = 0,size=8))+
-	ggtitle("WGBYC vs RDB effort for 27. areas")
-
-
-
-qc1<-allef%>%filter(Country%in%countryall)%>%
-	mutate(ices=substr(area,1,4))%>%
-	group_by(Country,year,ices)%>%
-	summarise(`Effort WGBYC`=sum(e1,na.rm=T),
-		  `Effort RDB`=sum(eRDB,na.rm=T))%>%
-	ungroup()%>%
-	tidyr::pivot_longer(4:5)
-pltqc1<-ggplot(qc1,aes(x=substr(year,3,4),y=value,fill=name))+
-	geom_bar(stat="identity",position=position_dodge())+
-	facet_grid(Country~ices,scale="free")+
-	theme_bw()+
-	theme(strip.text.y.right= element_text(angle = 0,size=8))+
-	theme(legend.position="bottom")+
-	ylab("Days at Sea")+xlab("Year")
-pltqc1<-ggplot(qc1%>%filter(),aes(x=substr(year,3,4),y=value,fill=name))+
-	geom_bar(stat="identity",position=position_dodge())+
-	facet_grid(Country~ices,scale="free")+
-	theme_bw()+
-	theme(strip.text.y.right= element_text(angle = 0,size=8))+
-	theme(legend.position="bottom")+
-	ylab("Days at Sea")+xlab("Year")
-
-```
-
-```{r pltqc1}
-print(pltqc1)
-```
-*`r figcap("pltqc1",caption="Fishing effort reported by countries and year in the WGBYC D1 table and the Fishframe RDB from 2017 to 2022 for country providing effort in the Fishframe RDB. Data extracted for the 27 FAO areas.")`*
-
-```{r pltqc0}
-print(pltqc0)
-```
-*`r figcap("pltqc0",caption="Fishing versus WGBYC effort reported by ICES countries by area, year and gear in the WGBYC D1 table and the Fishframe RDB from 2017 to 2022 for country providing effort in the Fishframe RDB for the FAO area 27.")`*
 
 \newpage
 

@@ -22,6 +22,8 @@ print("TOR A")
 D1<-read.taf(taf.data.path("getD1/D1.csv"))
 D2<-read.taf(taf.data.path("getD2/D2.csv"))
 D3<-read.taf(taf.data.path("getD3/D3.csv"))
+D4<-read.taf(taf.data.path("getD4/D4.csv"))
+D5<-read.taf(taf.data.path("getD5/D5.csv"))
 
 # read and simplify country codes tables
 ctrycodes<-read.taf(taf.data.path("vocab/ctrycodes.csv")) %>%

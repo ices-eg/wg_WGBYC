@@ -1,0 +1,55 @@
+## {{id}}
+
+
+```{r exploeff{{id}}}
+plte1<-ggplot(ef1%>%filter(ctryname=="{{id}}"),aes(x=year-2000,y=das))+
+	geom_point()+
+	facet_grid(gsub(" ","\n",ecoregion)~gsub(" ","\n",L3name),scale="free")+
+	scale_y_log10()+
+	geom_smooth(method="lm")+
+	theme_bw()+
+	ylab("Days at sea (log 10 scale)")+xlab("year")
+plte2<-ggplot(ef2%>%filter(ctryname=="{{id}}"),aes(x=year-2000,y=das,color=monmethname))+
+	geom_point()+
+	facet_grid(gsub(" ","\n",ecoregion)~gsub(" ","\n",L3name),scale="free")+
+	scale_y_log10()+
+	geom_smooth(method="lm")+
+	theme_bw()+
+	ylab("Days at sea (log 10 scale)")+xlab("year")
+plte12<-ggplot(ef12%>%filter(ctryname=="{{id}}",is.finite(das)&is.finite(dasobs)),
+	       aes(x=das,y=dasobs,color=(year)))+
+	geom_point()+
+	facet_grid(gsub(" ","\n",ecoregion)~gsub(" ","\n",L3name),scales="free")+
+	scale_y_log10()+
+	scale_x_log10()+
+	geom_smooth(method="lm")+
+	geom_point(data=ef12%>%filter(ctryname=="{{id}}",is.finite(das)&is.finite(dasobs),year=="{{idyear}}"),color="red",shape="+",size=2)+
+	theme_bw()+
+	ylab("Observation effort (days at sea, lo10 scale)")+
+	xlab("Fishing effort (days at sea, log10 scale)")
+```
+
+
+### Fishing effort
+
+```{r plte1{{id}}}
+print(plte1)
+```
+
+\newpage
+
+### Observation effort
+
+```{r plte2{{id}}}
+print(plte2)
+```
+
+\newpage
+
+### Fishing vs observation effort
+
+```{r plte12{{id}}}
+print(plte12)
+```
+
+\newpage

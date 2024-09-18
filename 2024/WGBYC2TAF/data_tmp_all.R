@@ -20,6 +20,8 @@ mkdir("data")
 ## TOR A example
 print("TOR A")
 #read the data
+taf.data.path("getCountryCodes")
+taf.boot.path("getCountryCodes")
 D1<-read.taf(taf.data.path("D1.csv"))
 D2<-read.taf(taf.data.path("D2.csv"))
 D3<-read.taf(taf.data.path("D3.csv"))
@@ -49,17 +51,17 @@ monprog<-read.taf(taf.data.path("monprog.csv")) %>%
 D1<-D1%>%
 	left_join(ctrycodes,by="country")%>%
 	left_join(gearcodes,by="metierL3")%>%
-	filter(year%in%2017:2022)
+	filter(year%in%2017:2023)
 D2<-D2%>%
 	left_join(ctrycodes,by="country")%>%
 	left_join(gearcodes,by="metierL3")%>%
 	left_join(monmeth,by="monitoringMethod")%>%
 	left_join(monprog,by="monitoringProgramType")%>%
-	filter(year%in%2017:2022)
+	filter(year%in%2017:2023)
 D3<-D3%>%
 	left_join(ctrycodes,by="country")%>%
 	left_join(gearcodes,by="metierL3")%>%
-	filter(year%in%2017:2022)
+	filter(year%in%2017:2023)
 
 print("Monitoring method overview")
 # prepare data for fig 3.3 (reported monitoring method)
@@ -266,8 +268,8 @@ nametab<-eval(parse(text=paste0("list(",nametab,")")))
 nametab<-c(list(ctryname="Year of data"),nametab)
 bgcolormat<-ifelse(greentable[,-1]<0.00001,"white","darkgreen")
 charcolormat<-matrix("white",nrow=nrow(subtable),ncol=ncol(subtable)-1)
-charcolormat["2023"==subtable[,-1]]<-"yellow"
-#charcolormat["2021,2022"==subtable[,-1]]<-"yellow"
+charcolormat["2024"==subtable[,-1]]<-"yellow"
+#charcolormat["2021,2023"==subtable[,-1]]<-"yellow"
 big_border<-fp_border(color="black", width = 2)
 #remove number
 greentable[is.na(greentable)]<-0
@@ -278,7 +280,7 @@ ftgreentable<-flextable(subtable)%>%
 	set_header_labels(values=nametab) %>%
 	add_header_row(values=c("","Fishing Effort (D1 table)",
 				"Monitoring Effort (D2 table)",
-				"Bycatch Events (D3 table)"),colwidths=c(1,6,6,6))%>%
+				"Bycatch Events (D3 table)"),colwidths=c(1,7,7,7))%>%
 	theme_box()%>%
 	align(align="center",part="header")%>%
 	align(align="center",part="body")%>%
@@ -298,17 +300,17 @@ save_as_docx(ftgreentable,path='./output/greentable.docx',
 #big long useless table
 #Annex_table
 tab2<-D2%>%
-	filter(year==2022)%>%
+	filter(year==2023)%>%
 	group_by(ecoregion,areaCode,metierL3,monitoringMethod)%>%
 	summarise(dasobs=sum(daysAtSeaOb,na.rm=T))%>%
 	ungroup()
 tab1<-D1%>%
-	filter(year==2022)%>%
+	filter(year==2023)%>%
 	group_by(ecoregion,metierL3,areaCode)%>%
 	summarise(dastot=sum(daysAtSeaF,na.rm=T))%>%
 	ungroup()
 tab3<-D3%>%
-	filter(year==2022)%>%
+	filter(year==2023)%>%
 	group_by(ecoregion,areaCode,metierL3,monitoringMethod,species,classname)%>%
 	summarise(nb=sum(individualsWithPingers,individualsWithoutPingers,na.rm=T),
 		  inc=sum(incidentsWithPingers,incidentsWithoutPingers,na.rm=T))%>%
@@ -339,17 +341,17 @@ saveWorkbook(wb,file="output/TOR_A_long_table_bycatch_only.xlsx",overwrite=T)
 #big long useless table with all info
 #Annex_table
 tab2<-D2%>%
-	filter(year==2022)%>%
+	filter(year==2023)%>%
 	group_by(ecoregion,areaCode,metierL3,monitoringMethod)%>%
 	summarise(dasobs=sum(daysAtSeaOb,na.rm=T))%>%
 	ungroup()
 tab1<-D1%>%
-	filter(year==2022)%>%
+	filter(year==2023)%>%
 	group_by(ecoregion,metierL3,areaCode)%>%
 	summarise(dastot=sum(daysAtSeaF,na.rm=T))%>%
 	ungroup()
 tab3<-D3%>%
-	filter(year==2022)%>%
+	filter(year==2023)%>%
 	group_by(ecoregion,areaCode,metierL3,monitoringMethod,species,classname)%>%
 	summarise(nb=sum(individualsWithPingers,individualsWithoutPingers,na.rm=T),
 		  inc=sum(incidentsWithPingers,incidentsWithoutPingers,na.rm=T))%>%
@@ -379,17 +381,17 @@ saveWorkbook(wb,file="output/TOR_A_long_table.xlsx",overwrite=T)
 
 #short table
 tab2<-D2%>%
-	filter(year==2022)%>%
+	filter(year==2023)%>%
 	group_by(ecoregion,metierL3,monitoringMethod)%>%
 	summarise(dasobs=sum(daysAtSeaOb,na.rm=T))%>%
 	ungroup()
 tab1<-D1%>%
-	filter(year==2022)%>%
+	filter(year==2023)%>%
 	group_by(ecoregion,metierL3)%>%
 	summarise(dastot=sum(daysAtSeaF,na.rm=T))%>%
 	ungroup()
 tab3<-D3%>%
-	filter(year==2022)%>%
+	filter(year==2023)%>%
 	group_by(ecoregion,metierL3,monitoringMethod,species,classname)%>%
 	summarise(nb=sum(individualsWithPingers,individualsWithoutPingers,na.rm=T),
 		  inc=sum(incidentsWithPingers,incidentsWithoutPingers,na.rm=T))%>%
@@ -419,17 +421,17 @@ saveWorkbook(wb,file="output/TOR_A_short_table.xlsx",overwrite=T)
 
 #shorter table
 tab2<-D2%>%
-	filter(year==2022)%>%
+	filter(year==2023)%>%
 	group_by(ecoregion)%>%
 	summarise(dasobs=sum(daysAtSeaOb,na.rm=T))%>%
 	ungroup()
 tab1<-D1%>%
-	filter(year==2022)%>%
+	filter(year==2023)%>%
 	group_by(ecoregion)%>%
 	summarise(dastot=sum(daysAtSeaF,na.rm=T))%>%
 	ungroup()
 tab3<-D3%>%
-	filter(year==2022)%>%
+	filter(year==2023)%>%
 	mutate(classname=ifelse(is.na(classname),"Reptiles",classname))%>%
 	group_by(Ecoregion=ecoregion,classname)%>%
 	summarise(nbspp=n_distinct(species),
@@ -459,12 +461,12 @@ saveWorkbook(wb,file="output/TOR_A_shorter_table.xlsx",overwrite=T)
 
 #shorter table detailed effort
 tab2<-D2%>%
-	filter(year==2022)%>%
+	filter(year==2023)%>%
 	group_by(ecoregion,L3name)%>%
 	summarise(dasobs=sum(daysAtSeaOb,na.rm=T))%>%
 	ungroup()
 tab1<-D1%>%
-	filter(year==2022)%>%
+	filter(year==2023)%>%
 	group_by(ecoregion,L3name)%>%
 	summarise(dastot=sum(daysAtSeaF,na.rm=T))%>%
 	ungroup()
@@ -474,7 +476,7 @@ tab12<-full_join(tab1,tab2)%>%
 	mutate(info=paste0(round(dastot,0)," das (",round(moncov,3),"% cov.)"))%>%
 	select(ecoregion,L3name,info)
 tab3<-D3%>%
-	filter(year==2022)%>%
+	filter(year==2023)%>%
 	group_by(ecoregion,L3name)%>%
 	summarise(inc=sum(incidentsWithPingers,incidentsWithoutPingers,na.rm=T))%>%
 	mutate(inc=ifelse(is.finite(inc),inc,0))%>%

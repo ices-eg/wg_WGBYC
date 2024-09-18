@@ -1,0 +1,10 @@
+
+library("icesVocab")
+codes <- getCodeList("BYC_MonProgr")
+write.taf(codes,file="monprog.csv",row.names=F,quote=T)
+codes <- getCodeList("BYC_MonMethod")
+write.taf(codes,file="monmeth.csv",row.names=F,quote=T)
+codes <- getCodeList("GearGroup")
+write.taf(codes,file="gearcodes.csv",row.names=F,quote=T)
+codes <- getCodeList("ISO_3166")
+write.taf(codes,file="ctrycodes.csv",row.names=F,quote=T)

@@ -1,12 +1,18 @@
 ## Preprocess data, write TAF data tables
 
 ## Before: the data
-## After: the data ready:-)
+## After: load the data 
 
+#some packages
 library(icesTAF)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(ggalluvial)
+library(flextable)
+library(ftExtra)
+library(officer)
+require(openxlsx)
 
-mkdir("data")
-
-## TOR A 
-print("TOR A")
-source("data_TOR_A.R")
+## data read 
+source("data1_dataread.R")

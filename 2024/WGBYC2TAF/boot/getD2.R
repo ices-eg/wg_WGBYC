@@ -1,0 +1,9 @@
+library(icesTAF)
+	library(icesConnect) 
+	library(httr)
+	library(jsonlite)
+	linkD0<-"https://bycatch.ices.dk/api/GetD2_Bycatch_monitoring_effort"
+	resp0<-ices_get_jwt(linkD0,username="dubroca")
+	D0<-content(resp0,as="text")
+	D0<-fromJSON(D0)
+	write.csv(D0,file="D2.csv",row.names=F)

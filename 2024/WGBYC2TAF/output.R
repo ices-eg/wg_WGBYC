@@ -8,4 +8,6 @@ library(icesTAF)
 mkdir("output")
 
 #TOR A
-source("output_TOR_A.R")
+source("output_greentable.R")
+source("output_monitoringmeth.R")
+source("output_reporttables.R")

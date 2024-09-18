@@ -2,8 +2,8 @@ library(icesTAF)
 	library(icesConnect) 
 	library(httr)
 	library(jsonlite)
-	linkD0<-"https://bycatch.ices.dk/api/getListPETS"
-	resp0<-ices_get_jwt(linkD0,username="dubroca")
+	linkD0<-"https://bycatch.ices.dk/api/GetByCatchRoadMapListSpecies"
+	resp0<-ices_get_jwt(linkD0)
 	D0<-content(resp0,as="text")
 	D0<-fromJSON(D0)
 	write.csv(D0,file="D5.csv",row.names=F)

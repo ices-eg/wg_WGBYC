@@ -143,11 +143,13 @@ tab3<-D3%>%
 		  nb=sum(individualsWithPingers,individualsWithoutPingers,na.rm=T),
 		  inc=sum(incidentsWithPingers,incidentsWithoutPingers,na.rm=T))%>%
 	ungroup()%>%
-	mutate(info=paste(paste0(inc," inc."),paste0(nb," ind."),paste0(nbspp," spp"),sep="/"))%>%
-	select(Ecoregion,classname,info)%>%
-	tidyr::pivot_wider(values_from=info,names_from=classname)
+	tidyr::pivot_longer(nbspp:inc,names_to="variable")%>%
+	tidyr::pivot_wider(values_from=value,names_from=classname)
+tab3$variable[tab3$variable=="nbspp"]<-"Species"
+tab3$variable[tab3$variable=="nb"]<-"Individuals"
+tab3$variable[tab3$variable=="inc"]<-"Incidents"
 
-stop()
+
 
 tab123<-left_join(tab1,tab2)%>%
 	filter(!is.na(ecoregion))%>%
@@ -155,7 +157,7 @@ tab123<-left_join(tab1,tab2)%>%
 		  `Fishing Effort (das)`=dastot,
 		  `Total Observed Effort (das)`=dasobs,
 		  `Monitoring Coverage (%)`=100*(dasobs/dastot))%>%
-	left_join(tab3)
+	left_join(tab3)%>%filter(Ecoregion!="")
 
 
 #write excel file
@@ -163,6 +165,26 @@ wb<-createWorkbook()
 addWorksheet(wb,1)
 writeData(wb,1,tab123)
 saveWorkbook(wb,file="output/TOR_A_shorter_table.xlsx",overwrite=T)
+
+pipo<-flextable(tab123)%>%
+	merge_v(j=~Ecoregion+`Fishing Effort (das)`+`Total Observed Effort (das)`+`Monitoring Coverage (%)`)%>%
+	hline(i=seq(3,nrow(tab123),3))%>%
+	valign(j=1:4,valign="top")%>%
+	colformat_double(j=4,digits=2)%>%
+	colformat_double(j=c(2:3,5:ncol(tab123)),digits=0)%>%
+	bg(part = "header", bg = "grey30") %>%
+  color(part = "header", color = "ghostwhite") %>%
+  italic(j = 1) %>% 
+  fit_to_width(max_width=11.7)
+
+#save as docx object 
+save_as_docx(pipo,path='./output/TOR_A_shorter_table.docx',
+	     pr_section=prop_section(
+				page_size=page_size(orient="landscape"),
+				page_margins=page_mar(bottom=0,top=0,right=0,left=0,header=0,footer=0,gutter=0)
+				)
+		)
+
 
 
 

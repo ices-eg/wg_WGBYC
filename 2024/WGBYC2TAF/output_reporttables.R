@@ -147,6 +147,8 @@ tab3<-D3%>%
 	select(Ecoregion,classname,info)%>%
 	tidyr::pivot_wider(values_from=info,names_from=classname)
 
+stop()
+
 tab123<-left_join(tab1,tab2)%>%
 	filter(!is.na(ecoregion))%>%
 	transmute(Ecoregion=ecoregion,

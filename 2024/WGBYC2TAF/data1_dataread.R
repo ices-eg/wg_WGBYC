@@ -59,3 +59,12 @@ D3<-D3%>%
 	left_join(ctrycodes,by="country")%>%
 	left_join(gearcodes,by="metierL3")%>%
 	filter(year%in%2017:2023)
+
+# 2024 correction because Belgium, -9, and format definition of a data structure
+# for WGBYC is only a dream
+D3$individualsWithPingers[D3$individualsWithPingers==-9]<-NA
+D3$incidentsWithPingers[D3$incidentsWithPingers==-9]<-NA
+
+
+
+

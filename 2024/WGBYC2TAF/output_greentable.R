@@ -1,6 +1,6 @@
 ## green table output for WGBYC report
 
-#source("data.R")
+source("data.R")
 
 #green table
 print("green table")
@@ -50,7 +50,7 @@ nametab<-eval(parse(text=paste0("list(",nametab,")")))
 nametab<-c(list(ctryname="Year of data"),nametab)
 bgcolormat<-ifelse(greentable[,-1]<0.00001,"white","darkgreen")
 charcolormat<-matrix("white",nrow=nrow(subtable),ncol=ncol(subtable)-1)
-charcolormat["2023"==subtable[,-1]]<-"yellow"
+charcolormat["2024"==subtable[,-1]]<-"yellow"
 #charcolormat["2021,2023"==subtable[,-1]]<-"yellow"
 big_border<-fp_border(color="black", width = 2)
 #remove number

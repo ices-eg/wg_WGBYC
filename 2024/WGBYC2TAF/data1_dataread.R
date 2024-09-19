@@ -58,6 +58,8 @@ D2<-D2%>%
 D3<-D3%>%
 	left_join(ctrycodes,by="country")%>%
 	left_join(gearcodes,by="metierL3")%>%
+	left_join(monmeth,by="monitoringMethod")%>%
+	left_join(monprog,by="monitoringProgramType")%>%
 	filter(year%in%2017:2023)
 
 # 2024 correction because Belgium, -9, and format definition of a data structure

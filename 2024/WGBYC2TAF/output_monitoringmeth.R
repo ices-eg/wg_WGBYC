@@ -71,12 +71,45 @@ plt<-ggplot(monprogctry,aes(x=year,y=reldas,
 	facet_wrap(~ctryname)+
 	theme_bw()+
 	theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
-	labs(fill="Monitoring method")+
+	labs(fill="Monitoring program")+
 	ylab("Proportion of annual DAS by monitoring program (%)")
 
 taf.png("output/monitoring_program_country.png")
 print(plt)
 dev.off()
+
+#
+# incidents by montoring program and species class
+#
+pipo<-D3
+pipo$nbinc<-apply(D3%>%select(incidentsWithPingers,incidentsWithoutPingers),1,sum,na.rm=T)
+pipo<-pipo%>%
+	mutate(classname=ifelse(is.na(classname),"Reptiles",classname))%>%
+	mutate(newclass=ifelse(grepl("Aves|Elasmo|Mamma|Rept",classname),classname,"Other"))
+
+incprog<-pipo%>%group_by(monmethname,year,newclass)%>%
+	summarise(inc=sum(nbinc,na.rm=T),.groups="drop") %>%
+	ungroup()
+#a graph
+plt<-ggplot(incprog,aes(x=as.factor(year),y=inc,
+			    stratum=monmethname,
+			    alluvium=monmethname,
+			    fill=monmethname,
+			    label=monmethname))+
+	geom_flow(stat="alluvium")+
+	geom_stratum()+
+	facet_wrap(~newclass,scale="free")+
+	theme_bw()+
+	theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+	      legend.position = "inside",
+	      legend.position.inside = c(.85,0.25))+
+	labs(fill="Monitoring method")+
+	ylab("Number of reported incidents")+xlab("")
+
+taf.png("output/incidents_by_monprog_class.png")
+print(plt)
+dev.off()
+
 
 
 #prepare data for sample coverage by monitoring effort by gear by georegions

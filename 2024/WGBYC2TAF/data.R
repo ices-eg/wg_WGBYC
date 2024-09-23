@@ -1,5 +1,13 @@
 ## Preprocess data, write TAF data tables
 
+##recipes
+#library(icesTAF)
+#library(icesConnect)
+#set_username("myusername")
+#taf.boot()
+#source.all()
+
+
 ## Before: the data
 ## After: load the data 
 

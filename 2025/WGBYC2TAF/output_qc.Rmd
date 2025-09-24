@@ -1,0 +1,447 @@
+---
+title: 'Quality checks'
+author: ''
+date: ''
+output: 
+  word_document:
+    number_sections: yes
+    reference_docx: './boot/data/reportTemplate.docx'
+---
+
+```{r compile, include=FALSE,eval=FALSE}
+#  bookdown::word_document2: default
+rmarkdown::render("output_qc.Rmd",clean=T)#,output_dir="./output",intermediates_dir="../../../tmp",knit_root_dir="../../../tmp")
+unlink("output_qc_cache",recursive=T)
+unlink("output_qc_files",recursive=T)
+  #officedown::rdocx_document: default
+#bibliography: '/Users/moi/Zotero/exportdb/My Library.bib'
+#csl: './ices.csl'
+```
+
+# Rationale
+
+This report presents a quality check framework developped for the WGBYC
+database. 
+
+WGBYC data are accessed using the ICES API in order to minimize the
+data manipultion time and to avoid the error associated with data formatting and
+reading.
+
+## Data and reproducibility
+
+Data used in this report were accessed following the TAF guideline.
+
+```{r setup, include=FALSE}
+#knitr option
+operationnel<-TRUE
+knitr::opts_chunk$set(echo=FALSE,
+		      warning=!operationnel,
+		      message=!operationnel,
+		      fig.height=6,fig.width=6,
+		      progress=!operationnel,
+		      verbose=!operationnel,
+		      include=TRUE,cache=T,
+		      fig.align="center")
+		      #include=TRUE,dev='png',autodep=FALSE)
+library(dplyr)
+library(icesVocab)
+library(httr)
+library(icesConnect) #ask a token using  ices_token
+library(jsonlite)
+library(flextable)
+library(ftExtra)
+library(officer)
+library(sf)
+library(ggplot2)
+sf_use_s2(FALSE)
+library(captioner)
+library(ggalluvial)
+#initialise caption fct for tab and fig
+tabcap <- captioner(prefix = "Tableau ",infix=".",levels=1,auto_space=FALSE)
+figcap <- captioner(prefix = "Figure ",infix=".",levels=1,auto_space=FALSE)
+figcapannex <- captioner(prefix = "Figure A",infix=".",levels=1,auto_space=FALSE)
+```
+
+```{r data}
+#get some ICES vocab stuff
+library(icesTAF)
+#read and load the data
+source("data.R")
+
+#a fct to shorten ecor for ggplot2
+fctshoreco<-function(a){sub("and the","and the\n",a)}
+
+```
+
+```{r generaltable,eval=T}
+#{{{
+greentableD1<-D1%>%
+	group_by(ctryname,year)%>%
+	summarise(n=n())%>%
+	mutate(year=paste0("D1_",year))%>%
+	tidyr::pivot_wider(values_from=n,names_from=year,names_sort=T)
+greentableD2<-D2%>%
+	group_by(ctryname,year)%>%
+	summarise(n=n())%>%
+	mutate(year=paste0("D2_",year))%>%
+	tidyr::pivot_wider(values_from=n,names_from=year,names_sort=T)
+greentableD3<-D3%>%
+	group_by(ctryname,year)%>%
+	summarise(n=n())%>%
+	mutate(year=paste0("D3_",year))%>%
+	tidyr::pivot_wider(values_from=n,names_from=year,names_sort=TRUE)
+greentable<-full_join(full_join(greentableD1,greentableD2),greentableD3)%>%
+	ungroup()%>%data.frame()
+
+#build up a submission table
+subtableD1<-D1%>%
+	group_by(ctryname,year)%>%
+	summarise(n=paste0(sort(unique(submissionYear)),collapse=","))%>%
+	mutate(year=paste0("D1_",year))%>%
+	tidyr::pivot_wider(values_from=n,names_from=year,names_sort=T)
+subtableD2<-D2%>%
+	group_by(ctryname,year)%>%
+	summarise(n=paste0(sort(unique(submissionYear)),collapse=","))%>%
+	mutate(year=paste0("D2_",year))%>%
+	tidyr::pivot_wider(values_from=n,names_from=year,names_sort=T)
+subtableD3<-D3%>%
+	group_by(ctryname,year)%>%
+	summarise(n=paste0(sort(unique(submissionYear)),collapse=","))%>%
+	mutate(year=paste0("D3_",year))%>%
+	tidyr::pivot_wider(values_from=n,names_from=year,names_sort=T)
+subtable<-full_join(full_join(subtableD1,subtableD2),subtableD3)%>%
+	ungroup()%>%data.frame()
+
+
+
+
+nametab<-names(greentable)[-1]
+nametab<-paste0(nametab,"='",substr(nametab,4,7),"'",collapse=",")
+nametab<-eval(parse(text=paste0("list(",nametab,")")))
+nametab<-c(list(ctryname="Year of data"),nametab)
+bgcolormat<-ifelse(greentable[,-1]<0.00001,"white","darkgreen")
+charcolormat<-matrix("white",nrow=nrow(subtable),ncol=ncol(subtable)-1)
+charcolormat["2024"==subtable[,-1]]<-"yellow"
+#charcolormat["2021,2023"==subtable[,-1]]<-"yellow"
+big_border<-fp_border(color="black", width = 2)
+#remove number
+greentable[is.na(greentable)]<-0
+
+
+#param to fix column formatting
+nbcolyear<-(ncol(subtable)-1)/3
+posbigline<-c(1,nbcolyear+1,1+nbcolyear*2)
+
+
+ftgreentable<-flextable(greentable)%>%
+	bg(j=2:ncol(greentable),bg=bgcolormat)%>%
+	color(j=2:ncol(greentable),color=charcolormat) %>%
+	set_header_labels(values=nametab) %>%
+	add_header_row(values=c("","Fishing Effort (D1 table)",
+				"Monitoring Effort (D2 table)",
+				"Bycatch Events (D3 table)"),colwidths=c(1,nbcolyear,nbcolyear,nbcolyear))%>%
+	theme_box()%>%
+	align(align="center",part="header")%>%
+	align(align="center",part="body")%>%
+	vline(j=posbigline,border=big_border)%>%
+	fontsize(part="all",size=6)%>%
+	autofit(add_w=0,add_h=0)
+
+pltD4<-flextable(D4)%>%
+	theme_box()%>%
+	align(align="center",part="header")%>%
+	align(align="center",part="body")%>%
+	fontsize(part="all",size=6)%>%
+	autofit(add_w=0,add_h=0)
+
+#some stat for the text
+nbcountryD1<-D4%>%filter(submissionYear==2024,grepl("2023",yearsInFishingEffort))%>%nrow
+nbcountryD2<-D4%>%filter(submissionYear==2024,yearsInByCatchEvent==2023)%>%nrow
+yeardatacall<-unique(D4$submissionYear)
+
+
+#save as docx object
+#save_as_docx(ftgreentable,path='./output/greentable.docx',
+#	     pr_section=prop_section(
+#				page_size=page_size(orient="landscape"),
+#				page_margins=page_mar(bottom=0.1,top=.1,right=.1,left=.1,header=0,footer=0,gutter=0)
+#				)
+#		)
+#}}}
+```
+
+# Table of responses by country – 2018 – 2023
+
+
+ICES/WGBYC requested data from `r print(nbcountryD1)` countries through the `r yeardatacall` data call. 
+Bulgaria submitted updated data, providing data from 2019 to 2023. 
+A data submission was considered achieved if 
+at least one value of effort was reported in the fishing and monitoring effort tables. 
+For the bycatch events, only the presence of data was considered, 
+as zero values (e.g. absence of bycatch events) is not clearly defined in the datacall. 
+The submission status and date are summarized in the table 
+`r figcap("greentable",display="num")`^[https://github.com/ices-eg/wg_WGBYC]. 
+
+
+```{r pltgreentable,fig.height=8,fig.width=7}
+print(pltD4)
+```
+`r figcap("greentable",caption="Summary of the data submitted in 2024 in the WGBYC database.")`
+
+# Observation methods evolution
+
+The evolution of the monitoring methods reported in the WGBYC data call is
+presented in the figure 
+`r figcap("pltt33",display="num")`. This figure is a variation of the figure 3.3
+of the TOR a.
+
+```{r newt33}
+#{{{
+t33<-D2%>%
+	group_by(year,monmethname)%>%
+	summarise(das=sum(daysAtSeaOb,na.rm=T))%>%
+	ungroup()%>%
+	group_by(year)%>%
+	mutate(tot=sum(das))%>%
+	ungroup()%>%
+	mutate(reldas=das/tot*100)%>%
+	mutate(monmethname=as.factor(monmethname))
+pltt33<-ggplot(t33,aes(x=year,
+	       y=reldas,
+	       stratum=monmethname,
+	       alluvium=monmethname,
+	       fill=monmethname,
+	       label=monmethname))+
+	geom_flow(stat="alluvium")+
+	geom_stratum()+
+	#geom_text(stat="stratum")+
+	theme_bw()+
+	ylab("Proportion of the annual days at sea by monitoring methods (%)")+
+	labs(fill="Monitoring method")
+print(pltt33)
+#}}}
+```
+
+`r figcap("pltt33",caption="Annual proportion of monitoring methods in days at sea from
+2017 to 2023.")`
+
+# Stability checks
+
+In this section, the temporal evolution of the fishing and observation effort
+is analysed using basic xy plot. The rationale behind these exploratory analyses
+is the hypotheses that observation program of bycatch should be linked in term
+of effort to the fishing effort. Statistical summaries were computed by year,
+ecoregion and countries to provided an overall view of the data.
+Days at sea is the main effort analysed in this section.
+
+# Fishing and observation effort by ecoregion
+
+```{r exploeff}
+#{{{
+ef1<-D1%>%
+	group_by(year,L3name,ecoregion)%>%
+	summarise(das=sum(daysAtSeaF,na.rm=T))%>%
+	ungroup()
+ef1bis<-D1%>%
+	group_by(year,L3name,ecoregion,month)%>%
+	summarise(das=sum(daysAtSeaF,na.rm=T))%>%
+	ungroup()
+ef2<-D2%>%
+	group_by(year,L3name,ecoregion,monmethname)%>%
+	summarise(dasobs=sum(daysAtSeaOb,na.rm=T))%>%
+	ungroup()
+ef2bis<-D2%>%
+	group_by(year,L3name,ecoregion)%>%
+	summarise(dasobs=sum(daysAtSeaOb,na.rm=T))%>%
+	ungroup()
+ef12<-full_join(ef1,ef2)
+#}}}
+```
+
+```{r exploeffallcountry}
+#{{{
+idyear<-2023
+plte1<-ggplot(ef1,aes(x=year-2000,y=das))+
+	geom_point()+
+	facet_grid(fctshoreco(ecoregion)~sub(" ","\n",L3name),scale="free")+
+	scale_y_log10()+
+	geom_smooth(method="lm")+
+	theme_bw()+
+	theme(strip.text.y.right= element_text(angle = 0,size=8))+
+	theme(strip.text.x.top= element_text(size=8))+
+	ylab("Days at sea (log 10 scale)")+xlab("year")
+plte1bis1<-ggplot(
+		  ef1bis%>%group_by(year,month=as.factor(month),ecoregion)%>%summarise(das=sum(das)))+
+	aes(x=month,y=das,fill=month)+
+	geom_bar(stat="identity")+
+	scale_y_log10()+
+	facet_grid(fctshoreco(ecoregion)~year,scale="free")+
+	theme_bw()+
+	theme(strip.text.y.right= element_text(angle = 0,size=8))+
+	ylab("Days at sea (log 10 scale)")+xlab("Month")
+
+plte1bis2<-ggplot(ef1bis)+aes(x=month,y=das,color=year,group=year)+
+	geom_line()+
+	#geom_point(data= ef1bis%>%filter(is.na(month))%>%mutate(month=1),
+	#	   aes(x=month,y=das,color=year,group=year,shape=20))%>%
+	facet_grid(fctshoreco(ecoregion)~sub(" ","\n",L3name),scale="free")+
+	scale_y_log10()+
+	theme_bw()+
+	theme(strip.text.y.right= element_text(angle = 0,size=8))+
+	theme(strip.text.x.top= element_text(size=8))+
+	ylab("Days at sea (log 10 scale)")+xlab("year")
+
+
+plte2<-ggplot(ef2,aes(x=year-2000,y=dasobs,color=monmethname))+
+	facet_grid(fctshoreco(ecoregion)~sub(" ","\n",L3name),scale="free")+
+	scale_y_log10()+
+	geom_smooth(method="lm")+
+	theme_bw()+
+	theme(strip.text.y.right= element_text(angle = 0,size=8))+
+	theme(strip.text.x.top= element_text(size=8))+
+	theme(legend.position="bottom")+
+	ylab("Days at sea (log 10 scale)")+xlab("year")
+plte12<-ggplot(ef12%>%filter(is.finite(das)&is.finite(dasobs)),
+	       aes(x=das,y=dasobs,color=(year)))+
+	geom_point()+
+	facet_grid(fctshoreco(ecoregion)~sub(" ","\n",L3name),scale="free")+
+	scale_y_log10()+
+	scale_x_log10()+
+	geom_smooth(method="lm")+
+	geom_point(data=ef12%>%filter(is.finite(das)&is.finite(dasobs),year==idyear),color="red",shape="+",size=2)+
+	theme_bw()+
+	theme(strip.text.y.right= element_text(angle = 0,size=8))+
+	theme(strip.text.x.top= element_text(size=8))+
+	ylab("Observation effort (days at sea, lo10 scale)")+
+	xlab("Fishing effort (days at sea, log10 scale)")
+#}}}
+```
+
+## Fishing effort 
+
+The figure `r figcap("plte1all",display="num")` presents the temporal evolution 
+of the fishing effort by
+gears (metier level 3) and ecoregion.
+
+```{r plte1all,fig.height=8,fig.width=7}
+print(plte1)
+```
+*`r figcap("plte1all",caption="Temporal evolution of the fishing effort by ecoregion and metier level 3 from 2017 to 2023. In blue, linear model highlight the temporal trends over the 5 years.")`*
+
+```{r plte1bisi1,fig.height=8,fig.width=7}
+print(plte1bis1)
+```
+*`r figcap("plte1all",caption="Monthly total of the fishing effort by ecoregion and year from 2017 to 2023.")`*
+
+```{r plte1bis,fig.height=8,fig.width=7}
+print(plte1bis2)
+```
+*`r figcap("plte1bis",caption="Month fishing effort by ecoregion and metier level 3 from 2017 to 2023. In blue, linear model highlight the temporal trends over the 5 years.")`*
+
+## Observation effort 
+
+The figure `r figcap("plte2all",display="num")` presents the temporal evolution 
+of the observation effort in days at sea by
+gears (metier level 3) and ecoregion, and monitoring programs.
+
+```{r plte2all,fig.height=8,fig.width=7}
+print(plte2)
+```
+*`r figcap("plte2all",caption="Temporal evolution of the fishing effort by ecoregion and metier level 3 from 2017 to 2023 by monitoring program. In blue, linear model highlight the temporal trends over the 5 years.")`*
+
+## Fishing versus observation effort 
+
+The figure `r figcap("plte12all",display="num")` shows the total effort of
+fishing versus the total effort of observation by year for each ecoregion and
+gears.
+
+```{r plte12all,fig.height=8,fig.width=7}
+print(plte12)
+```
+*`r figcap("plte12all",caption="Fishing effort (x-axis) versus observation effort (y-axis) total by years, ecoregion and gear.  In blue, linear model highlight the temporal trends over the 5 years.The red cross highlights the last year provided by the data call.")`*
+
+# By catch events
+
+Some test on D3 table in relation to D2 and D1.
+
+```{r bycatchstuff}
+ef1<-D1%>%
+	group_by(year,L3name,ecoregion)%>%
+	summarise(das=sum(daysAtSeaF,na.rm=T))%>%
+	ungroup()
+ef2<-D2%>%
+	group_by(year,L3name,ecoregion,monmethname)%>%
+	summarise(das=sum(daysAtSeaOb,na.rm=T))%>%
+	ungroup()
+b3<-D3%>%
+	mutate(n1=ifelse(is.na(incidentsWithPingers),0,1),
+		n2=ifelse(is.na(incidentsWithPingers),0,1))%>%
+	group_by(species,year,L3name,ecoregion)%>%
+	summarise(nb=n1+n2)%>%
+	ungroup() 
+
+b3%>%tidyr::pivot_wider(values_from=nb,names_from=species)
+
+marmamspp<-D3%>%filter(cetaceanFlag=="Y")%>%select(species)%>%distinct()
+
+b123<-full_join(full_join(ef1,ef2),b3)
+```
+
+# Fishing and observation effort by ecoregion and countries
+
+This section reproduces the graphical analyses provided by the previous section,
+by country.
+
+```{r exploeffbycountries}
+#{{{
+ef1<-D1%>%
+	group_by(ctryname,year,L3name,ecoregion)%>%
+	summarise(das=sum(daysAtSeaF,na.rm=T))%>%
+	ungroup()
+ef2<-D2%>%
+	group_by(ctryname,year,L3name,ecoregion,monmethname)%>%
+	summarise(das=sum(daysAtSeaOb,na.rm=T))%>%
+	ungroup()
+ef2bis<-D2%>%
+	group_by(ctryname,year,L3name,ecoregion)%>%
+	summarise(dasobs=sum(daysAtSeaOb,na.rm=T))%>%
+	ungroup()
+ef12<-full_join(ef1,ef2bis)
+#}}}
+```
+
+```{r prepexpand}
+#{{{
+listidcountry<-D1%>%transmute(id=ctryname)%>%distinct()%>%arrange(id)
+rmd1<-knitr::knit_expand("expand_ef1.rmd", 
+			 id=listidcountry$id[1],
+			 idyear=2023)
+rmd<-rmd1
+    for(i in 2:nrow(listidcountry)){
+    #for(i in 2:2){
+    rmdtmp<-knitr::knit_expand("expand_ef1.Rmd",
+			 id=listidcountry$id[i],
+			 idyear=2023)
+    rmd<-paste0(rmd,rmdtmp,collapse="\n")
+    }
+#}}}
+```
+
+```{r renderexpandconf,results = "asis",eval=T,cache=F}
+rendered <- knitr::knit(text = rmd, quiet = TRUE)
+cat(rendered, sep = "\n")
+```
+
+
+
+
+# Fishing effort
+
+This section describes the effort reported in the fishing effort table.
+
+Seven effort indicators can be reported to WGBYC, 2 of them being mandatory,
+only one is used here.
+
+\newpage
+
+# References

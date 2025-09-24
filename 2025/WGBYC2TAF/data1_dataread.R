@@ -1,0 +1,72 @@
+## Preprocess data, write TAF data tables
+
+## Before: the data
+## After: the data ready:-)
+
+#some packages
+library(icesTAF)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(ggalluvial)
+library(flextable)
+library(ftExtra)
+library(officer)
+require(openxlsx)
+
+
+
+## TOR A example
+print("TOR A")
+#read the data
+D1<-read.taf(taf.data.path("D1.csv"))
+D2<-read.taf(taf.data.path("D2.csv"))
+D3<-read.taf(taf.data.path("D3.csv"))
+D4<-read.taf(taf.data.path("D4.csv"))
+D5<-read.taf(taf.data.path("D5.csv"))
+
+# read and simplify country codes tables
+ctrycodes<-read.taf(taf.data.path("ctrycodes.csv")) %>%
+	transmute(country=Key,ctryname=tolower(Description))%>%
+	mutate(ctryname=paste0(toupper(substr(ctryname,1,1)),substr(ctryname,2,999)))%>%
+	mutate(ctryname=ifelse(ctryname=="United kingdom","United Kingdom",ctryname))%>%
+	distinct()
+# read and simplify country codes tables
+monmeth<-read.taf(taf.data.path("monmeth.csv")) %>%
+	transmute(monitoringMethod=Key,monmethname=Description)%>%
+	distinct()
+# read and simplify country codes tables
+gearcodes<-read.taf(taf.data.path("gearcodes.csv")) %>%
+	transmute(metierL3=Key,L3name=Description)%>%
+	distinct()
+# read and simplify monprog table
+monprog<-read.taf(taf.data.path("monprog.csv")) %>%
+	transmute(monitoringProgramType=Key,monprog=Description)%>%
+	distinct()
+
+#add plain country names, monitoring method, time filter
+D1<-D1%>%
+	left_join(ctrycodes,by="country")%>%
+	left_join(gearcodes,by="metierL3")%>%
+	filter(year%in%2017:2024)
+D2<-D2%>%
+	left_join(ctrycodes,by="country")%>%
+	left_join(gearcodes,by="metierL3")%>%
+	left_join(monmeth,by="monitoringMethod")%>%
+	left_join(monprog,by="monitoringProgramType")%>%
+	filter(year%in%2017:2024)
+D3<-D3%>%
+	left_join(ctrycodes,by="country")%>%
+	left_join(gearcodes,by="metierL3")%>%
+	left_join(monmeth,by="monitoringMethod")%>%
+	left_join(monprog,by="monitoringProgramType")%>%
+	filter(year%in%2017:2024)
+
+# 2024 correction because Belgium, -9, and format definition of a data structure
+# for WGBYC is only a dream
+D3$individualsWithPingers[D3$individualsWithPingers==-9]<-NA
+D3$incidentsWithPingers[D3$incidentsWithPingers==-9]<-NA
+
+
+
+

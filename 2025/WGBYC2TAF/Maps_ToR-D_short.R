@@ -19,7 +19,7 @@ library(ggforce)
 ######################
 
 # Select values
-analysis_year <- 2023
+analysis_year <- 2024
 Include_NAFO_areas <- 0 #1 if want to use NAFO
 
 # Define color palette for plot with shades of red

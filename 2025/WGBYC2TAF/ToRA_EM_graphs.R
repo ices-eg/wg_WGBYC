@@ -1,6 +1,8 @@
 library(ggplot2)
 library(dplyr)
 
+source("data.R")
+
 
 #### calculate percentages for text ####
 
@@ -54,7 +56,9 @@ plt <- ggplot(EM_Grouped, aes(x = year, y = total_tripsOb, fill = country)) +
   labs(fill = "Country") +
   ylab("Total trips observed using EM")
 
+taf.png("output/jani1.png")
 print(plt)
+dev.off()
 
 #### N of incidents per year per taxa, stack countries ####
 
@@ -84,7 +88,9 @@ plt_individuals <- ggplot(EM_Taxa_Grouped, aes(x = year, y = sum_individuals, fi
   facet_wrap(~classname, scales = "free") +
   scale_x_continuous(limits = c(2018.5, max(EM_Taxa_Grouped$year+0.5))) #this is just to make all x-axes the same
 
+taf.png("output/jani_plt_individuals.png")
 print(plt_individuals)
+dev.off()
 
 #Plot incidents per taxa
 plt_incidents <- ggplot(EM_Taxa_Grouped, aes(x = year, y = sum_incidents, fill = country)) +
@@ -96,7 +102,9 @@ plt_incidents <- ggplot(EM_Taxa_Grouped, aes(x = year, y = sum_incidents, fill =
   facet_wrap(~classname, scales = "free") +
   scale_x_continuous(limits = c(2018.5, max(EM_Taxa_Grouped$year+0.5))) #this is just to make all x-axes the same
 
+taf.png("output/jani_plt_incidents.png")
 print(plt_incidents)
+dev.off()
 
 
 

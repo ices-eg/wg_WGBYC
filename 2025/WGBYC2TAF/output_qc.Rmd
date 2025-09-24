@@ -121,7 +121,7 @@ nametab<-eval(parse(text=paste0("list(",nametab,")")))
 nametab<-c(list(ctryname="Year of data"),nametab)
 bgcolormat<-ifelse(greentable[,-1]<0.00001,"white","darkgreen")
 charcolormat<-matrix("white",nrow=nrow(subtable),ncol=ncol(subtable)-1)
-charcolormat["2024"==subtable[,-1]]<-"yellow"
+charcolormat["2025"==subtable[,-1]]<-"yellow"
 #charcolormat["2021,2023"==subtable[,-1]]<-"yellow"
 big_border<-fp_border(color="black", width = 2)
 #remove number
@@ -155,8 +155,8 @@ pltD4<-flextable(D4)%>%
 	autofit(add_w=0,add_h=0)
 
 #some stat for the text
-nbcountryD1<-D4%>%filter(submissionYear==2024,grepl("2023",yearsInFishingEffort))%>%nrow
-nbcountryD2<-D4%>%filter(submissionYear==2024,yearsInByCatchEvent==2023)%>%nrow
+nbcountryD1<-D4%>%filter(submissionYear==2025,grepl("2024",yearsInFishingEffort))%>%nrow
+nbcountryD2<-D4%>%filter(submissionYear==2025,yearsInByCatchEvent==2024)%>%nrow
 yeardatacall<-unique(D4$submissionYear)
 
 
@@ -170,11 +170,11 @@ yeardatacall<-unique(D4$submissionYear)
 #}}}
 ```
 
-# Table of responses by country – 2018 – 2023
+# Table of responses by country – 2018 – 2024
 
 
 ICES/WGBYC requested data from `r print(nbcountryD1)` countries through the `r yeardatacall` data call. 
-Bulgaria submitted updated data, providing data from 2019 to 2023. 
+Bulgaria submitted updated data, providing data from 2019 to 2024. 
 A data submission was considered achieved if 
 at least one value of effort was reported in the fishing and monitoring effort tables. 
 For the bycatch events, only the presence of data was considered, 
@@ -186,7 +186,7 @@ The submission status and date are summarized in the table
 ```{r pltgreentable,fig.height=8,fig.width=7}
 print(pltD4)
 ```
-`r figcap("greentable",caption="Summary of the data submitted in 2024 in the WGBYC database.")`
+`r figcap("greentable",caption="Summary of the data submitted in 2025 in the WGBYC database.")`
 
 # Observation methods evolution
 

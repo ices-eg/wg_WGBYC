@@ -3,7 +3,7 @@ D2.csv
 D3.csv
 D4.csv
 D5.csv
-.DS_Store
+DS_Store
 *.csv
 *.swp
 01_get_wgbyc_data.R

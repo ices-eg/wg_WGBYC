@@ -1,0 +1,1896 @@
+---
+title: "WKMAMBY outputs"
+author: "WKMAMBY"
+date: "2026-09-06"
+output:
+  html_document:
+    lightbox: true
+    toc: true
+    toc_float: false
+    toc_depth: 4
+    code_folding: hide
+    number_section: false
+    df_print: paged
+    css: styles.css
+    self_contained: true
+editor_options:
+  chunk_output_type: inline
+  markdown:
+    wrap: 80
+---
+
+```{r setup, echo=FALSE}
+operationnel <- TRUE
+knitr::opts_chunk$set(
+  message = !operationnel,
+  warning = !operationnel,
+  echo = !operationnel,
+  progress = !operationnel,
+  verbose = !operationnel,
+  fig.show = "asis",
+  fig.width = 12,
+  fig.height = 10
+)
+```
+
+```{r library_setup, message = FALSE, warning = FALSE}
+# Load libraries
+library(icesTAF)
+library(here)
+library(ggalluvial)
+library("icesVocab")
+library(sf)
+library(ggplot2)
+library(dplyr)
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(lwgeom)
+library(viridis)
+library(stringr)
+library(ggforce)
+library(readr)
+library(cowplot)
+library(here)
+library(data.table)
+library(dplyr)
+library(sf)
+library(ggrepel)
+library(plotly)
+library(rmapshaper)
+library(readxl)
+library(tidyverse)
+library(leaflet)
+library(mapview)
+library(ggspatial)
+library(paletteer)
+library(ggnewscale)
+library(raster)
+library(stringr)
+library(paletteer)
+library(RColorBrewer)
+here::i_am("DataComparisons.Rproj")
+```
+
+## Data preparation
+
+Load ICES vocab
+
+```{r ICES vocab}
+# Extract the country codes, gear codes and monitoring program tables
+codes <- getCodeList("BYC_MonProgr")
+write.taf(codes,file="data/monprog.csv", row.names = F, quote = T)
+codes <- getCodeList("BYC_MonMethod")
+write.taf(codes,file="data/monmeth.csv", row.names = F, quote = T)
+codes <- getCodeList("GearGroup")
+write.taf(codes,file="data/gearcodes.csv", row.names = F, quote = T)
+codes <- getCodeList("ISO_3166")
+write.taf(codes,file="data/ctrycodes.csv", row.names = F, quote = T)
+
+# Read and simplify the country codes table
+ctrycodes <- read_csv("data/ctrycodes.csv") %>%
+  transmute(country = Key, ctryname = tolower(Description)) %>%
+  mutate(ctryname = paste0(toupper(substr(ctryname, 1, 1)), substr(ctryname, 2, 999))) %>%
+  mutate(ctryname = ifelse(ctryname == "United kingdom of great britain and northern ireland (the)", 
+                           "United Kingdom", ctryname)) %>%
+  mutate(ctryname = ifelse(ctryname == "Netherlands (kingdom of the)", 
+                           "Netherlands", ctryname)) %>%
+  distinct()
+
+# Read and simplify the monitoring methods names table
+monmeth <- read_csv("data/monmeth.csv") %>%
+  transmute(monitoringMethod = Key, monmethname = Description) %>%
+  distinct()
+# Read and simplify gear codes table
+gearcodes <- read_csv("data/gearcodes.csv") %>%
+  transmute(metierL3 = Key, L3name = Description) %>%
+  distinct()
+# Read and simplify th monitoring program names table
+monprog <- read_csv("data/monprog.csv") %>%
+  transmute(monitoringProgramType = Key, monprog = Description)%>%
+  distinct()
+```
+
+Load data produced by ICES and chairs
+
+```{r Load data and merge WKMAMBY and WGBYC data, message = F, results = "hide"}
+# Get AUs info with prop by icesarea
+# If needed, we can add areacodes that we can fetch here : https://gis.ices.dk/shapefiles/ICES_StatRec_mapto_ICES_Areas.zip
+# Not needed here because the information is in the AUs file
+#statrec_map_areas <- here("data/ICES_StatRec_mapto_ICES_Areas/StatRec_map_Areas_Full_20170124.shp")
+#statrec_map_areas <- st_read(statrec_map_areas)
+AUsfile <- here("data/20260605_OSPAR_IA2029_AssessmentUnits_WKMAMBY_wgs84.gpkg")
+geoinfo <- suppressWarnings(suppressMessages(st_read(AUsfile,
+                                                     layer = "ICES statistical rectangles")))
+
+# ------------------------------------------------------------
+# Common dolphin disaggregated AUs
+# Official MSFD Atlantic subregions from EEA
+# ------------------------------------------------------------
+
+msfd_url <- paste0(
+  "https://marine.discomap.eea.europa.eu/",
+  "arcgis/rest/services/Marine/Marine_regions_subregions/",
+  "MapServer/0/query?",
+  "where=1%3D1",
+  "&outFields=*",
+  "&returnGeometry=true",
+  "&f=geojson"
+)
+
+# Read MSFD Atlantic subregions
+msfd <- suppressMessages(
+  sf::st_read(
+    msfd_url,
+    quiet = TRUE
+  )
+)
+
+# Names expected from the WKMAMBY AU definition
+cd_dis_names <- sort(
+  unique(
+    na.omit(
+      as.character(
+        geoinfo$common_dolphin_disaggregated
+      )
+    )
+  )
+)
+
+# Keep exactly the three Common dolphin disaggregated AUs
+cd_dis_sf <- msfd %>%
+  dplyr::filter(
+    name_text %in% cd_dis_names
+  ) %>%
+  dplyr::transmute(
+    ID = "Common Dolphin",
+    Name = name_text,
+    geometry = geometry
+  )
+
+# Use exactly the same CRS metadata as geoinfo
+cd_dis_sf <- sf::st_transform(
+  cd_dis_sf,
+  sf::st_crs(geoinfo)
+)
+
+# Check that all expected AUs were found
+missing_cd_dis <- setdiff(
+  cd_dis_names,
+  as.character(cd_dis_sf$Name)
+)
+
+if (length(missing_cd_dis) > 0) {
+  stop(
+    "Missing Common dolphin disaggregated AU polygon(s): ",
+    paste(missing_cd_dis, collapse = " | ")
+  )
+}
+
+# Simplify ONCE for map production
+# Keep the original cd_dis_sf untouched
+cd_dis_sf_map <- rmapshaper::ms_simplify(
+  cd_dis_sf,
+  keep = 0.01,
+  keep_shapes = TRUE
+)
+
+
+
+### Load D1 for WGBYC and D1 for WKMAMBY
+#WGBYC
+load('data/WGBYCD1_for_WKMAMBY20260623_111342.RData')
+D1byc <- WGBYCD1_for_WKMAMBY
+unique(D1byc$year)
+
+# WKMAMBY
+load("data/WKMAMBYD1_withoutES9a8c_harbour_porpoise_corrected20260623_095707.RData")
+
+D1mby <- WKMAMBYD1_withoutES9a8c %>% 
+  mutate(year = as.integer(year)) %>%
+  left_join(as.data.frame(geoinfo) %>%
+              dplyr::select(ICESNAME, Area_27) %>%
+              dplyr::rename(statRec = ICESNAME, areaCode = Area_27), by = "statRec") %>% 
+  mutate(areaCode = paste0("27.", areaCode))
+  
+unique(D1mby$year)
+
+### Load D2 for WGBYC and D2 for WKMAMBY
+
+# WGBYC
+load("data/WGBYCD2_for_WKMAMBY20260623_111520.RData")
+
+D2byc <- WGBYCD2_for_WKMAMBY %>%
+  mutate(monitoringProgramType = as.numeric(monitoringProgramType))
+unique(D2byc$year)
+
+# WKMAMBY
+load("data/WKMAMBYD2_harbour_porpoise_corrected20260623_095707.RData")
+
+D2mby <- WKMAMBYD2 %>% 
+  mutate(year = as.integer(year),
+         monitoringProgramType = as.numeric(monitoringProgramType)) %>%
+  left_join(as.data.frame(geoinfo) %>%
+              dplyr::select(ICESNAME, Area_27) %>%
+              dplyr::rename(statRec = ICESNAME, areaCode = Area_27), by = "statRec") %>% 
+  mutate(areaCode = paste0("27.", areaCode))
+  
+unique(D2mby$year)
+
+### Load D3 for WGBYC and D3 for WKMAMBY
+# WGBYC
+load("data/WGBYCD3_for_WKMAMBY20260623_111931.RData")
+D3byc <- WGBYCD3_for_WKMAMBY %>% 
+  mutate(monitoringProgramType = as.numeric(monitoringProgramType))
+unique(D3byc$year)
+# WKMAMBY
+load("data/WKMAMBYD3_harbour_porpoise_corrected20260623_095707.RData")
+D3mby <- WKMAMBYD3 %>% 
+  mutate(year = as.integer(year),
+         monitoringProgramType = as.numeric(monitoringProgramType)) %>%
+  left_join(as.data.frame(geoinfo) %>%
+              dplyr::select(ICESNAME, Area_27) %>%
+              dplyr::rename(statRec = ICESNAME, areaCode = Area_27), by = "statRec") %>% 
+  mutate(areaCode = paste0("27.", areaCode))
+  
+unique(D3mby$year)
+
+
+#### Now we need to merge WGBYC and WKMAMBY data
+# Also add plain country names, monitoring method, time filter
+D1 <- bind_rows(D1byc, D1mby) %>%
+  left_join(ctrycodes, by = "country") %>%
+  left_join(gearcodes, by = "metierL3") %>% 
+  filter(statRec != -9 | is.na(statRec),
+         metierL3 != "L3NK") %>% 
+# Need to change GTN to GNS for PT
+  mutate(metierL4 = case_when(country == "PT" & metierL4 == "GTN" ~ "GNS", TRUE ~ metierL4),
+         daysAtSeaF = if_else(metierL4 %in% c("PTM", "PTB", "SPR") & !country %in% c("DK", "NL"),
+                              daysAtSeaF / 2, daysAtSeaF))
+# Divide fishing effort by 2 for every country except DK and NL : PTM, PTB, SPR 
+  
+
+D2_before_filters <- bind_rows(D2byc, D2mby) %>%
+  left_join(ctrycodes, by = "country") %>%
+  left_join(gearcodes, by = "metierL3") %>%
+  left_join(monmeth, by = "monitoringMethod") %>%
+  left_join(monprog, by = "monitoringProgramType") %>%
+  filter(year %in% 2016:2024)
+
+D2 <- D2_before_filters %>% 
+  filter(!monitoringMethod %in% c("PO", "OTH"),
+         statRec != -9 | is.na(statRec),
+         metierL3 != "L3NK")
+
+D3 <- bind_rows(D3byc, D3mby) %>%
+  left_join(ctrycodes, by = "country") %>%
+  left_join(gearcodes, by = "metierL3") %>%
+  left_join(monmeth, by = "monitoringMethod") %>%
+  left_join(monprog, by = "monitoringProgramType") %>%
+  filter(year %in% 2016:2024,
+         species %in% c("Phocoena phocoena", 
+                        "Delphinus delphis",
+                        "Halichoerus grypus",
+                        "Phoca vitulina",
+                        "Balaenoptera acutorostrata"),
+         !monitoringMethod %in% c("PO", "OTH"),
+         statRec != -9 | is.na(statRec),
+         metierL3 != "L3NK")
+
+# 2024 correction because Belgium, -9, and format definition of a data structure
+# for WGBYC is only a dream
+D3$individualsWithPingers[D3$individualsWithPingers == -9] <- NA
+D3$incidentsWithPingers[D3$incidentsWithPingers == -9] <- NA
+```
+
+```{r Monitoring dataprep}
+# Prepare data for figures (reported monitoring method)
+# All
+monmethall_before_filters <- D2_before_filters %>%
+  group_by(monmethname, year) %>%
+	summarise(das = sum(daysAtSeaOb, na.rm = T), .groups = "drop") %>% 
+	group_by(year) %>%
+	mutate(tot = sum(das)) %>%
+	ungroup() %>%
+	mutate(reldas = das/tot*100) %>%
+  mutate(monmethname = recode(monmethname,
+                                   "SO"  = "At-sea observers",
+                                   "EM"  = "Electronic monitoring",
+                                   "LB"  = "Logbook",
+                                   "OTH" = "Other",
+                                   "PO"  = "Port observers",
+                                   "VO"  = "Vessel crew observer"))
+monmethall <- D2 %>%
+  group_by(monmethname, year) %>%
+	summarise(das = sum(daysAtSeaOb, na.rm = T), .groups = "drop") %>% 
+	group_by(year) %>%
+	mutate(tot = sum(das)) %>%
+	ungroup() %>%
+	mutate(reldas = das/tot*100) %>%
+  mutate(monmethname = recode(monmethname,
+                                   "SO"  = "At-sea observers",
+                                   "EM"  = "Electronic monitoring",
+                                   "LB"  = "Logbook",
+                                   "OTH" = "Other",
+                                   "PO"  = "Port observers",
+                                   "VO"  = "Vessel crew observer"))
+# By country
+monmethctry <- D2 %>%
+  group_by(monmethname, ctryname, year) %>%
+	summarise(das = sum(daysAtSeaOb, na.rm = T), .groups = "drop") %>%
+	group_by(year, ctryname) %>%
+	mutate(tot = sum(das)) %>%
+	ungroup() %>%
+	mutate(reldas = das/tot*100) %>%
+  mutate(monmethname = recode(monmethname,
+                                   "SO"  = "At-sea observers",
+                                   "EM"  = "Electronic monitoring",
+                                   "LB"  = "Logbook",
+                                   "OTH" = "Other",
+                                   "PO"  = "Port observers",
+                                   "VO"  = "Vessel crew observer"))
+
+method_colors <- c(
+  "At-sea observers"      = "#F8766D",
+  "Electronic monitoring" = "#B79F00",
+  "Logbook"               = "#00BA38",
+  "Other"                 = "#00BFC4",
+  "Port observers"        = "#619CFF",
+  "Vessel crew observer"  = "#ED68ED"
+)
+```
+
+
+## Overview of data and monitoring methods
+
+```{r}
+# Monitoring methods overview
+# Annual totals
+tot_before <- monmethall_before_filters %>%
+  distinct(year, tot)
+
+tot_torc <- monmethall %>%
+  distinct(year, tot)
+
+max_das <- max(c(tot_before$tot, tot_torc$tot), na.rm = TRUE)
+
+# Main alluvial plot - before filters
+plt_data_before_filters <- ggplot(
+  monmethall_before_filters,
+  aes(x = year,
+    y = reldas,
+    stratum = monmethname,
+    alluvium = monmethname,
+    fill = monmethname,
+    label = monmethname)) +
+  geom_flow(stat = "alluvium") +
+  geom_stratum() +
+  scale_fill_manual(values = method_colors) +
+  scale_x_continuous(
+    breaks = seq(2016, 2024, 1),
+    limits = c(2015.5, 2024.5),
+    expand = c(0, 0)) +
+  theme_bw() +
+  theme(legend.position = "none") +
+  labs(fill = "Monitoring method") +
+  ylab("Proportion of annual DAS\nby monitoring method (%)")
+
+# Main alluvial plot - ToR C
+plt_data_torc <- ggplot(
+  monmethall,
+  aes(x = year,
+    y = reldas,
+    stratum = monmethname,
+    alluvium = monmethname,
+    fill = monmethname,
+    label = monmethname)) +
+  geom_flow(stat = "alluvium") +
+  geom_stratum() +
+  scale_fill_manual(values = method_colors, drop = FALSE) +
+  scale_x_continuous(
+    breaks = seq(2016, 2024, 1),
+    limits = c(2015.5, 2024.5),
+    expand = c(0, 0)) +
+  theme_bw() +
+  theme(legend.position = "none") +
+  labs(fill = "Monitoring method") +
+  ylab("Proportion of annual DAS\nby monitoring method used in ToR C (%)")
+
+# Small DAS barplot - before filters
+bar_before <- ggplot(tot_before, aes(year, tot)) +
+  geom_col(width = 0.4, col = "black") +
+  scale_x_continuous(
+    breaks = seq(2016, 2024, 1),
+    limits = c(2015.5, 2024.5),
+    expand = c(0, 0)) +
+  scale_y_continuous(
+    limits = c(0, max_das),
+    expand = expansion(mult = c(0, 0.05))) +
+  theme_bw() +
+  theme(
+    panel.grid = element_blank(),
+    axis.title.x = element_blank(),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    plot.margin = margin(5, 5, 0, 5)) +
+  ylab("Total DAS\nmonitored") +
+  annotate("text", x = -Inf, y = Inf, label = "A", 
+           hjust = -0.5, vjust = 1.5, fontface = "bold", size = 6)
+
+# Small DAS barplot - ToR C
+bar_torc <- ggplot(tot_torc, aes(year, tot)) +
+  geom_col(width = 0.4, col = "black") +
+  scale_x_continuous(
+    breaks = seq(2016, 2024, 1),
+    limits = c(2015.5, 2024.5),
+    expand = c(0, 0)) +
+  scale_y_continuous(
+    limits = c(0, max_das),
+    expand = expansion(mult = c(0, 0.05))) +
+  theme_bw() +
+  theme(
+    panel.grid = element_blank(),
+    axis.title.x = element_blank(),
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    plot.margin = margin(5, 5, 0, 5)
+  ) +
+  ylab("Total DAS\nmonitored") +
+  annotate("text", x = -Inf, y = Inf, label = "B",
+           hjust = -0.5, vjust = 1.5, fontface = "bold", size = 6)
+
+# Stack barplots above alluvial plots
+panel_before <- plot_grid(bar_before, plt_data_before_filters, ncol = 1,
+                          align = "v", rel_heights = c(0.2, 1))
+
+panel_torc <- plot_grid(bar_torc, plt_data_torc, ncol = 1, 
+                        align = "v", rel_heights = c(0.2, 1))
+
+# Extract legend from one plot
+legend <- get_legend(
+  plt_data_before_filters +
+    theme( legend.position = "bottom", legend.box.margin = margin(0, 0, 0, 0)))
+
+# Combine A and B panels
+combined_plot <- plot_grid(panel_before, panel_torc, ncol = 2, align = "v")
+
+# Add shared legend
+final_plot <- plot_grid(combined_plot, legend, ncol = 1, rel_heights = c(1, 0.1))
+
+print(final_plot)
+
+taf.png("output/monitoring_method_overview.png")
+print(final_plot)
+dev.off()
+```
+
+```{r Monitoring method by country}
+# Monitoring method by country 
+plt <- ggplot(monmethctry, 
+              aes(x = year, y = reldas,
+                  stratum = monmethname,
+                  alluvium = monmethname,
+                  fill = monmethname,
+                  label = monmethname)) +
+	  scale_fill_manual(values = method_colors) +
+	  geom_flow(stat = "alluvium") +
+	  geom_stratum() +
+	facet_wrap(~ctryname) +
+	theme_bw() +
+	theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
+  scale_x_continuous(breaks = seq(2016,2024,1)) +
+	labs(fill="Monitoring method") +
+	ylab("Proportion of annual DAS by monitoring method (%)")
+
+print(plt)
+
+taf.png("output/monitoring_method_country.png")
+print(plt)
+dev.off()
+
+```
+
+```{r Monitoring program by country}
+# Monitoring program by country 
+monprogctry <- D2 %>% 
+  group_by(monprog, ctryname, year) %>%
+	summarise(das = sum(daysAtSeaOb, na.rm = T), .groups = "drop") %>%
+	group_by(year, ctryname) %>%
+	mutate(tot = sum(das)) %>%
+	ungroup() %>%
+	mutate(reldas = das/tot*100)
+
+plt <- ggplot(monprogctry, aes(x = year, y = reldas,
+			    stratum = monprog,
+			    alluvium = monprog,
+			    fill = monprog,
+			    label = monprog)) +
+	geom_flow(stat = "alluvium") +
+	geom_stratum() +
+	facet_wrap(~ctryname) +
+	theme_bw() +
+	theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
+  scale_x_continuous(breaks = seq(2016,2024,1)) +
+  labs(fill = "Monitoring program") +
+	ylab("Proportion of annual DAS by monitoring program (%)")
+
+print(plt)
+
+taf.png("output/monitoring_program_country.png")
+print(plt)
+dev.off()
+```
+
+```{r Incidents by monitoring program}
+# Incidents by monitoring program and species class
+incidents <- D3
+incidents$nbinc <- apply(D3 %>% dplyr::select(incidentsWithPingers, incidentsWithoutPingers), 1, sum, na.rm = T)
+
+incprog <- incidents %>%
+  group_by(monmethname, year, species) %>%
+	summarise(inc = sum(nbinc, na.rm = T), .groups = "drop") %>%
+	ungroup()
+
+plt <- ggplot(incprog, aes(x = as.factor(year), y = inc,
+			    stratum = monmethname,
+			    alluvium = monmethname,
+			    fill = monmethname,
+			    label = monmethname))+
+	geom_flow(stat = "alluvium")+
+	geom_stratum() +
+	facet_wrap(~species, scale = "free") +
+	theme_bw() +
+	theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
+	      legend.position = "inside",
+	      legend.position.inside = c(.85,0.25)) +
+  scale_x_discrete(breaks = seq(2016,2024,1)) +
+	labs(fill = "Monitoring method") +
+	ylab("Number of reported incidents") + xlab("")
+
+print(plt)
+
+taf.png("output/incidents_by_monprog_class.png")
+print(plt)
+dev.off()
+```
+
+
+
+## Prepare data for sample coverage by monitoring effort by gear by assessment unit
+
+
+
+
+```{r Data by monitoring effort and AUs, echo = FALSE}
+# Create correspondences table
+species_info <- tibble::tibble(
+  colname = c(
+    "harbour_porpoise",
+    "common_dolphin_aggregated",
+    "common_dolphin_disaggregated",
+    "minke_whale",
+    "grey_seal_aggregated",
+    "grey_seal_disaggregated",
+    "harbour_seal_aggregated",
+    "harbour_seal_disaggregated"
+  ),
+  layer = c(
+    "harbour porpoise",
+    "common dolphin",
+    "common dolphin",
+    "minke whale",
+    "grey seal",
+    "grey seal",
+    "harbour seal",
+    "harbour seal"
+  ),
+  aggregation = c(
+    "single",
+    "aggregated",
+    "disaggregated",
+    "single",
+    "aggregated",
+    "disaggregated",
+    "aggregated",
+    "disaggregated"
+  ),
+  AU_code = c(
+    "AU_HP",
+    "AU_CD",
+    "AU_CD_dis",
+    "AU_MK",
+    "AU_GS",
+    "AU_GS_dis",
+    "AU_HS",
+    "AU_HS_dis"
+  ),
+  species = c(
+    "Harbour porpoise",
+    "Common dolphin (aggregated)",
+    "Common dolphin (disaggregated)",
+    "Minke whale",
+    "Grey seal (aggregated)",
+    "Grey seal (disaggregated)",
+    "Harbour seal (aggregated)",
+    "Harbour seal (disaggregated)"
+  )
+)
+
+species_info <- species_info %>%
+  mutate(species_group = str_remove(species, " \\((aggregated|disaggregated)\\)$"),
+         aggregation = case_when(
+           str_detect(species, "\\(aggregated\\)$") ~ "Aggregated",
+           str_detect(species, "\\(disaggregated\\)$") ~ "Disaggregated",
+           TRUE ~ "Single"))
+
+# Index containing the filenames of all plots
+coverage_plot_index <- vector("list")
+k <- 1
+
+for (i in seq_len(nrow(species_info))) {
+  
+  sp <- species_info$colname[i]
+  prefix <- species_info$colname[i]
+  title_text <- species_info$species[i]
+  species_group <- species_info$species_group[i]
+  aggregation <- species_info$aggregation[i]
+  
+  monmethgear1 <- D2 %>%
+    group_by(monmethname, .data[[sp]], L3name, year) %>%
+    summarise(das = sum(daysAtSeaOb, na.rm = TRUE), .groups = "drop") %>%
+    filter(!monmethname %in% c("Logbook", "Port observers"))
+  
+  monmethgear2 <- monmethgear1 %>%
+    mutate(L3name = "All metier") %>%
+    group_by(monmethname, .data[[sp]], L3name, year) %>%
+    summarise(das = sum(das, na.rm = TRUE), .groups = "drop")
+  
+  monmethgear <- bind_rows(monmethgear1, monmethgear2) %>%
+    mutate(monmethname = as.factor(monmethname))
+  
+  list_assessment_units <- na.omit(unique(monmethgear[[sp]]))
+
+  
+  for (au in list_assessment_units) {
+    
+    tmp <- monmethgear[monmethgear[[sp]] == au, ] %>%
+      filter(!is.na(L3name))
+    
+    
+    plt <- ggplot(tmp,
+      aes(x = year, y = das, stratum = monmethname, alluvium = monmethname,
+          fill = monmethname, label = monmethname)) +
+      geom_flow(stat = "alluvium") +
+      geom_stratum() +
+      facet_wrap(~L3name, scale = "free") +
+      theme_bw() +
+      theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
+      scale_fill_manual(values = method_colors, limits = names(method_colors), drop = FALSE) +
+      scale_x_continuous(breaks = seq(2016, 2024, 1)) +
+      labs(fill = "Monitoring method") +
+      ggtitle(paste(title_text, "/", au)) +
+      ylab("Sum of annual DAS by monitoring method")
+    
+    filename <- paste0("output/monitoring_method_", prefix, "_", gsub(" ", "", au), ".png")
+    
+    ggsave(filename = filename,
+      plot = plt,
+      width = 12,
+      height = 8,
+      dpi = 120
+    )
+    
+    # THIS is what creates the index used by the tab chunk
+    coverage_plot_index[[k]] <- tibble(
+      species_group = species_group,
+      aggregation = aggregation,
+      species = title_text,
+      colname = sp,
+      assessment_unit = as.character(au),
+      filename = filename
+    )
+    
+    k <- k + 1
+  }
+}
+
+# Turn the list into a tibble
+coverage_plot_index <- bind_rows(coverage_plot_index)
+```
+
+
+## Create the tabs outputs in html
+
+
+```{r coverage_tabs, echo = FALSE, results = "asis"}
+
+cat('
+<style>
+.coverage-plot img {
+  width: 100%;
+  height: auto;
+  display: block;
+  margin-top: 15px;
+  margin-bottom: 25px;
+}
+</style>
+')
+
+
+# ============================================================
+# LEVEL 1: SPECIES
+# ============================================================
+
+cat("\n## Monitoring effort by assessment unit {.tabset .tabset-pills}\n\n")
+
+
+for (sp in unique(coverage_plot_index$species_group)) {
+  
+  dat_sp <- coverage_plot_index %>%
+    filter(species_group == sp)
+  
+  
+  cat("### ", sp, " {.tabset}\n\n", sep = "")
+  
+  
+  # ==========================================================
+  # LEVEL 2: AGGREGATED / DISAGGREGATED
+  # ==========================================================
+  
+  for (agg in unique(dat_sp$aggregation)) {
+    
+    dat_agg <- dat_sp %>%
+      filter(aggregation == agg)
+    
+    cat("#### ", agg, " {.tabset}\n\n", sep = "")
+    
+    # ========================================================
+    # LEVEL 3: ASSESSMENT UNIT
+    # ========================================================
+    
+    for (i in seq_len(nrow(dat_agg))) {
+      
+      x <- dat_agg[i, ]
+      
+      cat("##### ", x$assessment_unit, "\n\n", sep = "")
+      
+      
+      cat('<div class="coverage-plot">', '<img src="', x$filename,
+          '" alt="Monitoring effort plot for ', x$assessment_unit,
+          '">', '</div>', "\n\n", sep = "")
+      }
+  }
+}
+
+
+# Close tabset
+cat("\n## {-}\n\n")
+```
+
+
+## Maps of fishing effort, monitoring effort, and monitoring coverage
+
+We need maps at both statistical rectangle and ICES divisions.
+I should draw both the total and for instance the previous year.
+
+Fishing over the years for each AU. Interesting for each division? Also check monitoring.
+
+Add also at the ICES subdivisions levels
+
+```{r Fishing effort monitoring effort and monitoring coverage: process data function, echo = FALSE}
+# Function to process data
+process_data <- function(d1, d2) {
+  
+  d_list = list()
+  
+  d1_l3 <- d1 %>% 
+#    filter(year == analysis_year) %>%
+#    group_by(!!sym(metierL3), areaCode) %>% # for WGBYC
+    filter(statRec != -9) %>% 
+    group_by(metierL3, statRec) %>%
+    summarize(total_daysAtSeaF = sum(daysAtSeaF, na.rm = TRUE)) %>%
+    dplyr::rename(ICESNAME = statRec) %>% 
+    left_join(geoinfo, by = "ICESNAME")
+  
+  d2_l3 <- d2 %>% 
+#    filter(year == analysis_year) %>%
+#    group_by(!!sym(metierL3), areaCode) %>% # for WGBYC
+    filter(statRec != -9) %>% 
+    group_by(metierL3, statRec) %>%
+    summarize(total_daysAtSeaOb = sum(daysAtSeaOb, na.rm = TRUE)) %>%
+    dplyr::rename(ICESNAME = statRec) %>% 
+    left_join(geoinfo, by = "ICESNAME")
+  
+  mc_l3 <- d1_l3 %>% 
+    left_join(d2_l3) %>%
+    mutate(monitoring_coverage = total_daysAtSeaOb / total_daysAtSeaF * 100,
+           monitoring_coverage = replace_na(monitoring_coverage, 0))
+
+  d1_l4 <- d1 %>% 
+#    filter(year == analysis_year) %>%
+#    group_by(!!sym(metierL4), areaCode) %>% # for WGBYC
+      filter(statRec != -9) %>% 
+      group_by(!!sym("metierL4"), statRec) %>%
+      summarize(total_daysAtSeaF = sum(daysAtSeaF, na.rm = TRUE)) %>%
+      dplyr::rename(ICESNAME = statRec) %>%
+      left_join(geoinfo, by = "ICESNAME")
+  
+  d2_l4 <- d2 %>% 
+#    filter(year == analysis_year) %>%
+#    group_by(!!sym(metierL4), areaCode) %>% # for WGBYC
+      filter(statRec != -9) %>% 
+      group_by(!!sym("metierL4"), statRec) %>%
+      summarize(total_daysAtSeaOb = sum(daysAtSeaOb, na.rm = TRUE)) %>%
+      dplyr::rename(ICESNAME = statRec) %>% 
+      left_join(geoinfo, by = "ICESNAME")
+  
+  mc_l4 <- d1_l4 %>% 
+    left_join(d2_l4) %>%
+    mutate(monitoring_coverage = total_daysAtSeaOb / total_daysAtSeaF * 100,
+           monitoring_coverage = replace_na(monitoring_coverage, 0))
+  
+  d_list$metierL3 <- list(d1_l3, d2_l3, mc_l3)
+  d_list$metierL4 <- list(d1_l4, d2_l4, mc_l4)
+  
+return(d_list)
+}
+```
+
+
+
+
+
+
+
+
+```{r Fishing effort monitoring effort and monitoring coverage: launch function, echo = FALSE}
+# ------------------------------------------------------------
+# Data periods for maps
+# ------------------------------------------------------------
+
+map_data <- list(
+  "2016-2024" = process_data(
+    D1,
+    D2
+  ),
+
+  "2024" = process_data(
+    D1 %>% dplyr::filter(year == 2024),
+    D2 %>% dplyr::filter(year == 2024)
+  )
+)
+```
+
+
+
+
+
+
+
+```{r Fishing effort monitoring effort and monitoring coverage: run, echo = FALSE}
+# Rename metiers
+rename_vector <- c(
+  # L4 level
+  "DRB" = "DRB - Boat dredge", "FPN" = "FPN - Stationary uncovered pound nets", "FPO" = "FPO - Pots and traps",
+  "FWR" = "FWR - Fixed installations for fences and weirs", "FYK" = "FYK - Fyke nets", "GEL" = "GEL - Glass eel fishing",
+  "GN" = "GN - Gill nets", "GNC" = "GNC - Encircling gillnets", "GND" = "GND - Driftnet", "GNS" = "GNS - Set gillnet",
+  "GTN" = "GTN - Gillnets-trammel nets", "GTR" = "GTR - Trammel nets", "HMD" = "HMD - Mechanised/suction dredge",
+  "LA" = "LA - Lampara nets", "LH" = "LH - Hand and pole lines", "LHM" = "LHM - Hand and pole lines",
+  "LHP" = "LHP - Hand and pole lines (hand-operated)", "LLD" = "LLD - Drifting longlines", "LLS" = "LLS - Set longlines",
+  "LTL" = "LTL - Trolling lines", "LX" = "LX - Hooks and lines", "MIS" = "MIS - Gear nei.", "OTB" = "OTB - Bottom otter trawl",
+  "OTM" = "OTM - Midwater otter trawl", "OTT" = "OTT - Milti-rig otter trawl", "PS" = "PS - Purse seine",
+  "PTB" = "PTB - Bottom pair trawl", "PTM" = "PTM - Pelagic pair trawl", "SB" = "SB - Beach Seine",
+  "SBV" = "SBV - Beach and boat seine", "SDN" = "SDN - Anchored seine", "SPR" = "SPR - Pair seine",
+  "SSC" = "SSC - Fly shooting seine", "TBB" = "TBB - Beam trawl",
+  # L3 level
+  "L3DR" = "DR - Dredges", "L3FIX" = "FIX - Traps", "L3GN" = "GN - Nets",
+  "L3LH" = "LH - Rods and Lines", "L3LL" = "LL - Longlines", "L3PS" = "PS - Surrounding Nets",
+  "L3PT" = "PT - Pelagic Trawls", "L3SX" = "SX - Seines", "L3TB" = "TB - Bottom Trawls"
+)
+```
+
+
+```{r Load stuff, echo = FALSE}
+# Load ICES areas, subareas and subdivisions
+icesfile <- here("data/ICES_areas/ICES_Areas_20160601_cut_dense_3857.shp")
+icesgeo <- st_read(icesfile)
+icesgeo <- ms_simplify(icesgeo, keep = 0.01)
+
+icesgeo_lab <- icesgeo %>%
+  sf::st_transform(3035) %>%
+  sf::st_point_on_surface() %>%
+  sf::st_transform(st_crs(geoinfo)) %>%
+  cbind(sf::st_coordinates(.))
+
+icesgeo <- st_transform(icesgeo, crs = st_crs(geoinfo))
+
+# Load and transform data
+world <- rnaturalearth::ne_countries(scale = "medium", returnclass = "sf")# %>%
+  #st_make_valid() %>%
+  #st_transform(st_crs(geoinfo))
+```
+
+
+```{r Fishing effort monitoring effort and monitoring coverage: prepare color palette, echo = FALSE}
+## Plot the maps with fishing effort, monitoring effort, monitoring coverage by AU
+cols <- brewer.pal(7, "Blues")
+cols_2 <- brewer.pal(6, "Blues")
+
+own_palette <- list(
+  fishing_effort = c(
+    "< 100" = cols[1],
+    "100–1000" = cols[2],
+    "1000–2000" = cols[3], 
+    "2000–5000" = cols[4],
+    "5000-10000" = cols[5],
+    "10000-25000" = cols[6], 
+    "≥ 25000" = cols[7]
+    ),
+  monitoring_effort = c(
+    "< 5" = cols[1],
+    "5–10" = cols[2],
+    "10–20" = cols[3],
+    "20–50" = cols[4],
+    "50-100" = cols[5],
+    "100-500" = cols[6],
+    "≥ 500" = cols[7]
+    ),
+  monitoring_coverage = c(
+    "< 0.25" = cols_2[1],
+    "0.25-0.5" = cols_2[2],
+    "0.5-1" = cols_2[3],
+    "1–2" = cols_2[4],
+    "2–5" = cols_2[5],
+    "≥ 5" = cols_2[6]
+    )
+  )
+
+
+```
+
+
+
+
+```{r Test}
+# ------------------------------------------------------------
+# Load official MSFD regions/subregions from EEA
+# ------------------------------------------------------------
+
+msfd_url <- paste0(
+  "https://marine.discomap.eea.europa.eu/",
+  "arcgis/rest/services/Marine/Marine_regions_subregions/",
+  "MapServer/0/query?",
+  "where=1%3D1",
+  "&outFields=*",
+  "&returnGeometry=true",
+  "&f=geojson"
+)
+
+msfd <- sf::st_read(
+  msfd_url,
+  quiet = TRUE
+)
+
+# Expected Common dolphin disaggregated AU names
+cd_dis_names <- sort(
+  unique(
+    na.omit(
+      as.character(
+        geoinfo$common_dolphin_disaggregated
+      )
+    )
+  )
+)
+
+# Select exactly those three polygons
+cd_dis_sf <- msfd %>%
+  dplyr::filter(
+    name_text %in% cd_dis_names
+  ) %>%
+  dplyr::transmute(
+    ID = "Common Dolphin",
+    Name = name_text,
+    geometry = geometry
+  )
+
+cd_dis_sf %>%
+  sf::st_drop_geometry()
+
+nrow(cd_dis_sf)
+
+setdiff(
+  cd_dis_names,
+  cd_dis_sf$Name
+)
+
+cd_dis_sf_plot <- rmapshaper::ms_simplify(
+  cd_dis_sf,
+  keep = 0.01,
+  keep_shapes = TRUE
+)
+
+plot(
+  sf::st_geometry(cd_dis_sf_plot),
+  border = "red",
+  lwd = 2
+)
+
+plot(
+  sf::st_geometry(
+    geoinfo %>%
+      dplyr::filter(!is.na(common_dolphin_disaggregated))
+  ),
+  add = TRUE,
+  border = "grey40"
+)
+
+```
+
+
+
+
+
+
+
+
+```{r Fishing effort monitoring effort and monitoring coverage: prepare data for maps function, echo = FALSE}
+prepare_plot_species_maps <- function(list_d1_d2, colname, layer_name, species) {
+  
+  all_metiers <- c()
+  all_metiers$metierL3 <- sort(unique(c(
+    list_d1_d2$metierL3[[1]]$metierL3,
+    list_d1_d2$metierL3[[2]]$metierL3,
+    list_d1_d2$metierL3[[3]]$metierL3
+    )))
+  
+  all_metiers$metierL4 <- sort(unique(c(
+    list_d1_d2$metierL4[[1]]$metierL4,
+    list_d1_d2$metierL4[[2]]$metierL4,
+    list_d1_d2$metierL4[[3]]$metierL4
+    )))
+  
+# Metier L3
+  
+  # Fishing effort
+  list_d1_d2$metierL3[[1]] <- st_as_sf(list_d1_d2$metierL3[[1]]) %>%
+    tidyr::drop_na(colname) %>% 
+    mutate(
+      total_daysAtSeaF_class = cut(
+        total_daysAtSeaF,
+        breaks = c(0, 100, 1000, 2000, 5000, 10000, 25000, Inf),
+        labels = c("< 100", "100–1000", "1000–2000", "2000–5000", "5000-10000", "10000-25000", "≥ 25000"),
+        include.lowest = TRUE),
+      !!sym("metierL3") := recode(!!sym("metierL3"), !!!rename_vector))
+  
+  # Monitoring effort
+  list_d1_d2$metierL3[[2]] <- st_as_sf(list_d1_d2$metierL3[[2]]) %>%
+    tidyr::drop_na(colname) %>% 
+    mutate(
+      total_daysAtSeaOb_class = cut(
+      total_daysAtSeaOb,
+      breaks = c(0, 5, 10, 20, 50, 100, 500, Inf),
+      labels = c("< 5", "5–10", "10–20", "20–50", "50-100", "100-500", "≥ 500"),
+      include.lowest = TRUE),
+      !!sym("metierL3") := recode(!!sym("metierL3"), !!!rename_vector))
+  
+  # Monitoring coverage
+  list_d1_d2$metierL3[[3]] <- st_as_sf(list_d1_d2$metierL3[[3]]) %>%
+    tidyr::drop_na(colname) %>% 
+    mutate(monitoring_coverage_class = cut(
+      monitoring_coverage,
+      breaks = c(0, 0.25, 0.5, 1, 2, 5, Inf),
+      labels = c("< 0.25", "0.25-0.5", "0.5-1", "1–2", "2–5", "≥ 5"),
+      include.lowest = TRUE),
+      !!sym("metierL3") := recode(!!sym("metierL3"), !!!rename_vector))
+    
+# Metier L4
+  
+  # Fishing effort
+  list_d1_d2$metierL4[[1]] <- st_as_sf(list_d1_d2$metierL4[[1]]) %>%
+    tidyr::drop_na(colname) %>% 
+    mutate(
+      total_daysAtSeaF_class = cut(
+        total_daysAtSeaF,
+        breaks = c(0, 100, 1000, 2000, 5000, 10000, 25000, Inf),
+        labels = c("< 100", "100–1000", "1000–2000", "2000–5000", "5000-10000", "10000-25000", "≥ 25000"),
+        include.lowest = TRUE),
+      !!sym("metierL4") := recode(!!sym("metierL4"), !!!rename_vector))
+  
+  # Monitoring effort
+  list_d1_d2$metierL4[[2]] <- st_as_sf(list_d1_d2$metierL4[[2]]) %>%
+    tidyr::drop_na(colname) %>% 
+    mutate(
+      total_daysAtSeaOb_class = cut(
+      total_daysAtSeaOb,
+      breaks = c(0, 5, 10, 20, 50, 100, 500, Inf),
+      labels = c("< 5", "5–10", "10–20", "20–50", "50-100", "100-500", "≥ 500"),
+      include.lowest = TRUE),
+      !!sym("metierL4") := recode(!!sym("metierL4"), !!!rename_vector))
+  
+  # Monitoring coverage
+  list_d1_d2$metierL4[[3]] <- st_as_sf(list_d1_d2$metierL4[[3]]) %>%
+    tidyr::drop_na(colname) %>% 
+    mutate(monitoring_coverage_class = cut(
+      monitoring_coverage,
+      breaks = c(0, 0.25, 0.5, 1, 2, 5, Inf),
+      labels = c("< 0.25", "0.25-0.5", "0.5-1", "1–2", "2–5", "≥ 5"),
+      include.lowest = TRUE),
+      !!sym("metierL4") := recode(!!sym("metierL4"), !!!rename_vector))
+  
+  
+# ------------------------------------------------------------
+# Select AU polygons corresponding to this AU definition
+# ------------------------------------------------------------
+
+# AU names expected for this particular definition
+# e.g. grey_seal_aggregated vs grey_seal_disaggregated
+au_names <- sort(
+  unique(
+    na.omit(
+      as.character(geoinfo[[colname]])
+    )
+  )
+)
+
+# ------------------------------------------------------------
+# Select the appropriate AU polygon source
+# ------------------------------------------------------------
+
+if (colname == "common_dolphin_disaggregated") {
+
+  au_sf <- cd_dis_sf_map %>%
+    dplyr::filter(Name %in% au_names)
+
+} else {
+
+  au_sf <- suppressMessages(
+    sf::st_read(
+      AUsfile,
+      layer = layer_name,
+      quiet = TRUE
+    )
+  )
+
+  au_sf <- au_sf %>%
+    dplyr::filter(Name %in% au_names)
+
+  if (nrow(au_sf) > 0) {
+    au_sf <- rmapshaper::ms_simplify(
+      au_sf,
+      keep = 0.01,
+      keep_shapes = TRUE
+    )
+  }
+}
+
+# Check whether some expected AU polygons are missing
+missing_au <- setdiff(
+  au_names,
+  as.character(au_sf$Name)
+)
+
+if (length(missing_au) > 0) {
+  warning(
+    "Missing AU polygon(s) for ", colname, ": ",
+    paste(missing_au, collapse = " | ")
+  )
+}
+
+# Bounding box
+if (nrow(au_sf) > 0) {
+
+  bbox <- sf::st_bbox(au_sf)
+
+} else {
+
+  bbox <- sf::st_bbox(
+    list_d1_d2$metierL3[[1]]
+  )
+}
+
+# Color selection
+areas_totales <- au_names
+areas_totales <- areas_totales[!is.na(areas_totales)]
+
+colores <- setNames(
+  grDevices::colorRampPalette(
+    RColorBrewer::brewer.pal(8, "Set2")
+  )(length(areas_totales)),
+  areas_totales
+)
+
+  list(list_d1_d2 = list_d1_d2,
+        au_sf = au_sf,
+        bbox = bbox,
+        colores = colores,
+        all_metiers = all_metiers)
+  }
+```
+
+
+
+
+
+
+```{r Fishing effort monitoring effort and monitoring coverage: function for mapping, echo = FALSE}
+create_plot <- function(list_d1_d2,
+                        au_sf,
+                        bbox,
+                        colores,
+                        all_metiers,
+                        species, 
+                        colname, 
+                        metier_lvl,
+                        period) {
+  
+  # ------------------------------------------------------------
+  # Helper: add AU polygons only when available
+  # ------------------------------------------------------------
+  
+  add_au_layer <- function(p, au_sf, colores) {
+    
+    if (nrow(au_sf) > 0) {
+      
+      p +
+        geom_sf(
+          data = au_sf,
+          aes(color = Name),
+          size = 0.5,
+          fill = NA
+        ) +
+        scale_color_manual(
+          values = colores,
+          breaks = names(colores),
+          name = "AUs"
+        )
+      
+    } else {
+      
+      p
+    }
+  }
+  
+  
+  # ------------------------------------------------------------
+  # Select métier level
+  # ------------------------------------------------------------
+  
+  if (metier_lvl == "metierL3") {
+    
+    metiers_names <- all_metiers$metierL3
+    list_d1_d2 <- list_d1_d2$metierL3
+    
+  } else {
+    
+    metiers_names <- all_metiers$metierL4
+    list_d1_d2 <- list_d1_d2$metierL4
+  }
+  
+  
+  # Store only lightweight metadata
+  plot_index <- vector(
+    "list",
+    length(metiers_names)
+  )
+  
+  
+  # ------------------------------------------------------------
+  # Loop over métiers
+  # ------------------------------------------------------------
+  
+  for (j in seq_along(metiers_names)) {
+    
+    metier <- metiers_names[j]
+    
+    
+    # ------------------------------------------------------------
+    # Subset data
+    # ------------------------------------------------------------
+    
+    fishing_effort_data <- dplyr::filter(
+      list_d1_d2[[1]],
+      .data[[metier_lvl]] == rename_vector[[metier]]
+    )
+    
+    monitoring_effort_data <- dplyr::filter(
+      list_d1_d2[[2]],
+      .data[[metier_lvl]] == rename_vector[[metier]]
+    )
+    
+    monitoring_coverage_data <- dplyr::filter(
+      list_d1_d2[[3]],
+      .data[[metier_lvl]] == rename_vector[[metier]]
+    )
+    
+    
+    # ============================================================
+    # Fishing effort
+    # ============================================================
+    
+    plt_fishing_effort <- ggplot() +
+      
+      geom_sf(
+        data = fishing_effort_data,
+        aes(fill = total_daysAtSeaF_class),
+        show.legend = TRUE
+      ) +
+      
+      scale_fill_manual(
+        values = own_palette$fishing_effort,
+        limits = names(own_palette$fishing_effort),
+        drop = FALSE,
+        na.value = "white",
+        name = "Fishing effort (days at sea)"
+      ) +
+      
+      geom_sf(
+        data = world,
+        fill = "grey90",
+        color = "black",
+        size = 0.1
+      ) +
+      
+      geom_sf(
+        data = icesgeo,
+        fill = NA,
+        colour = "black",
+        size = 0.5
+      ) +
+      
+      geom_text_repel(
+        data = icesgeo_lab,
+        aes(
+          x = X,
+          y = Y,
+          label = Area_27
+        ),
+        size = 2,
+        force = 0.01
+      ) +
+      
+      theme_bw() +
+      
+      ggtitle(
+        paste0(
+          species,
+          " / Fishing effort"
+          ),
+        subtitle = paste0(
+          rename_vector[[metier]],
+          " / ",
+          period
+          )
+        ) +
+      
+      xlab("Longitude") +
+      ylab("Latitude")
+    
+    
+    # Add correct AU polygons
+    plt_fishing_effort <- add_au_layer(
+      plt_fishing_effort,
+      au_sf,
+      colores
+    )
+
+    plt_fishing_effort <- plt_fishing_effort +
+      coord_sf(
+        xlim = as.numeric(
+          bbox[c("xmin", "xmax")]
+          ),
+        ylim = as.numeric(
+          bbox[c("ymin", "ymax")]
+          ),
+        crs = sf::st_crs(4326),
+        default_crs = sf::st_crs(4326),
+        expand = FALSE
+        )
+    
+    # ============================================================
+    # Monitoring effort
+    # ============================================================
+    
+    plt_monitoring_effort <- ggplot() +
+      
+      geom_sf(
+        data = monitoring_effort_data,
+        aes(fill = total_daysAtSeaOb_class),
+        show.legend = TRUE
+      ) +
+      
+      scale_fill_manual(
+        values = own_palette$monitoring_effort,
+        limits = names(own_palette$monitoring_effort),
+        drop = FALSE,
+        na.value = "white",
+        name = "Monitoring effort (days at sea)"
+      ) +
+      
+      geom_sf(
+        data = world,
+        fill = "grey90",
+        color = "black",
+        size = 0.1
+      ) +
+      
+      geom_sf(
+        data = icesgeo,
+        fill = NA,
+        colour = "black",
+        size = 0.5
+      ) +
+      
+      geom_text_repel(
+        data = icesgeo_lab,
+        aes(
+          x = X,
+          y = Y,
+          label = Area_27
+        ),
+        size = 2,
+        force = 0.01
+      ) +
+
+      theme_bw() +
+      
+      ggtitle(
+        paste0(
+          species,
+          " / Monitoring effort"
+          ),
+        subtitle = paste0(
+          rename_vector[[metier]],
+          " / ",
+          period
+          )
+        ) +
+      
+      xlab("Longitude") +
+      ylab("Latitude")
+    
+    
+    # Add correct AU polygons
+    plt_monitoring_effort <- add_au_layer(
+      plt_monitoring_effort,
+      au_sf,
+      colores
+    )
+    
+    plt_monitoring_effort <- plt_monitoring_effort +
+      coord_sf(
+        xlim = as.numeric(
+          bbox[c("xmin", "xmax")]
+          ),
+        ylim = as.numeric(
+          bbox[c("ymin", "ymax")]
+          ),
+        crs = sf::st_crs(4326),
+        default_crs = sf::st_crs(4326),
+        expand = FALSE
+        )
+    
+    # ============================================================
+    # Monitoring coverage
+    # ============================================================
+    
+    plt_monitoring_coverage <- ggplot() +
+      
+      geom_sf(
+        data = monitoring_coverage_data,
+        aes(fill = monitoring_coverage_class),
+        show.legend = TRUE
+      ) +
+      
+      scale_fill_manual(
+        values = own_palette$monitoring_coverage,
+        limits = names(own_palette$monitoring_coverage),
+        drop = FALSE,
+        na.value = "white",
+        name = "Monitoring coverage (%)"
+      ) +
+      
+      geom_sf(
+        data = world,
+        fill = "grey90",
+        color = "black",
+        size = 0.1
+      ) +
+      
+      geom_sf(
+        data = icesgeo,
+        fill = NA,
+        color = "black",
+        size = 0.5
+      ) +
+      
+      geom_text_repel(
+        data = icesgeo_lab,
+        aes(
+          x = X,
+          y = Y,
+          label = Area_27
+        ),
+        size = 2,
+        force = 0.01
+      ) +
+      
+      theme_bw() +
+      
+      ggtitle(
+        paste0(
+          species,
+          " / Monitoring coverage"
+          ),
+        subtitle = paste0(
+          rename_vector[[metier]],
+          " / ",
+          period
+          )
+        ) +
+      
+      xlab("Longitude") +
+      ylab("Latitude")
+    
+    
+    # Add correct AU polygons
+    plt_monitoring_coverage <- add_au_layer(
+      plt_monitoring_coverage,
+      au_sf,
+      colores
+    )
+    
+    plt_monitoring_coverage <- plt_monitoring_coverage +
+      coord_sf(
+        xlim = as.numeric(
+          bbox[c("xmin", "xmax")]
+          ),
+        ylim = as.numeric(
+          bbox[c("ymin", "ymax")]
+          ),
+        crs = sf::st_crs(4326),
+        default_crs = sf::st_crs(4326),
+        expand = FALSE
+        )
+    
+    # ------------------------------------------------------------
+    # Filenames
+    # ------------------------------------------------------------
+    
+    period_filename <- dplyr::recode(
+      period,
+      "2016-2024" = "all",
+      "2024" = "2024"
+      )
+    
+    fishing_file <- paste0(
+      "output/map_fishing_effort_",
+      colname, "_",
+      metier_lvl, "_",
+      metier, "_",
+      period_filename,
+      ".png"
+    )
+    
+    monitoring_file <- paste0(
+      "output/map_monitoring_effort_",
+      colname, "_",
+      metier_lvl, "_",
+      metier, "_",
+      period_filename,
+      ".png"
+    )
+    
+    coverage_file <- paste0(
+      "output/map_monitoring_coverage_",
+      colname, "_",
+      metier_lvl, "_",
+      metier, "_",
+      period_filename,
+      ".png"
+    )
+    
+    
+    # ------------------------------------------------------------
+    # Save maps
+    # ------------------------------------------------------------
+    
+    ggsave(
+      filename = fishing_file,
+      plot = plt_fishing_effort,
+      width = 12,
+      height = 8,
+      dpi = 120
+    )
+    
+    ggsave(
+      filename = monitoring_file,
+      plot = plt_monitoring_effort,
+      width = 12,
+      height = 8,
+      dpi = 120
+    )
+    
+    ggsave(
+      filename = coverage_file,
+      plot = plt_monitoring_coverage,
+      width = 12,
+      height = 8,
+      dpi = 120
+    )
+    
+    
+    # ------------------------------------------------------------
+    # Store metadata + filenames only
+    # ------------------------------------------------------------
+    
+    plot_index[[j]] <- tibble(
+      species = species,
+      colname = colname,
+      period = period,
+      metier_level = metier_lvl,
+      metier = metier,
+      metier_name = rename_vector[[metier]],
+      fishing_effort = fishing_file,
+      monitoring_effort = monitoring_file,
+      monitoring_coverage = coverage_file
+    )
+  }
+  
+  
+  # ------------------------------------------------------------
+  # Return lightweight index
+  # ------------------------------------------------------------
+  
+  dplyr::bind_rows(plot_index)
+}
+```
+
+
+
+
+```{r Launch plot generation, quiet = TRUE, echo = FALSE}
+map_index <- purrr::pmap(
+  species_info,
+  function(colname,
+           layer,
+           AU_code,
+           species,
+           species_group,
+           aggregation) {
+
+    period_results <- lapply(
+      names(map_data),
+      function(period) {
+
+        # Data for this period
+        period_data <- map_data[[period]]
+
+        # Prepare spatial data for this species / AU definition
+        prep <- prepare_plot_species_maps(
+          list_d1_d2 = period_data,
+          colname = colname,
+          layer_name = layer,
+          species = species
+        )
+
+        # ------------------------------------------------------------
+        # Métier L3
+        # ------------------------------------------------------------
+
+        index_L3 <- create_plot(
+          list_d1_d2 = prep$list_d1_d2,
+          au_sf = prep$au_sf,
+          bbox = prep$bbox,
+          colores = prep$colores,
+          all_metiers = prep$all_metiers,
+          species = species,
+          colname = colname,
+          metier_lvl = "metierL3",
+          period = period
+        )
+
+        # ------------------------------------------------------------
+        # Métier L4
+        # ------------------------------------------------------------
+
+        index_L4 <- create_plot(
+          list_d1_d2 = prep$list_d1_d2,
+          au_sf = prep$au_sf,
+          bbox = prep$bbox,
+          colores = prep$colores,
+          all_metiers = prep$all_metiers,
+          species = species,
+          colname = colname,
+          metier_lvl = "metierL4",
+          period = period
+        )
+
+        dplyr::bind_rows(
+          index_L3,
+          index_L4
+        )
+      }
+    )
+
+    dplyr::bind_rows(period_results) %>%
+      dplyr::mutate(
+        species_group = species_group,
+        aggregation = aggregation,
+        AU_code = AU_code,
+        layer = layer,
+        .before = 1
+      )
+  }
+) %>%
+  purrr::list_rbind()
+```
+
+
+
+
+```{r map_tabs, echo = FALSE, results = "asis"}
+
+# ------------------------------------------------------------
+# Options
+# ------------------------------------------------------------
+
+cat('
+<style>
+.map-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  width: 100%;
+  margin-top: 15px;
+  margin-bottom: 25px;
+}
+
+.map-row img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+</style>
+')
+
+
+# ============================================================
+# LEVEL 1: SPECIES
+# ============================================================
+
+cat("\n# Maps {.tabset .tabset-pills}\n\n")
+
+for (sp in unique(map_index$species_group)) {
+
+  dat_sp <- map_index %>%
+    dplyr::filter(species_group == sp)
+
+  cat(
+    "## ", sp, " {.tabset}\n\n",
+    sep = ""
+  )
+
+
+  # ==========================================================
+  # LEVEL 2: AGGREGATED / DISAGGREGATED
+  # ==========================================================
+
+  for (agg in unique(dat_sp$aggregation)) {
+
+    dat_agg <- dat_sp %>%
+      dplyr::filter(aggregation == agg)
+
+    cat(
+      "### ", agg, " {.tabset}\n\n",
+      sep = ""
+    )
+
+
+    # ========================================================
+    # LEVEL 3: MÉTIER LEVEL
+    # ========================================================
+
+    for (lvl in unique(dat_agg$metier_level)) {
+
+      dat_lvl <- dat_agg %>%
+        dplyr::filter(metier_level == lvl)
+
+      lvl_label <- dplyr::recode(
+        lvl,
+        "metierL3" = "L3",
+        "metierL4" = "L4"
+      )
+
+      cat(
+        "#### Métier ", lvl_label, " {.tabset}\n\n",
+        sep = ""
+      )
+
+
+      # ======================================================
+      # LEVEL 4: INDIVIDUAL MÉTIER
+      # ======================================================
+
+      for (met in unique(dat_lvl$metier)) {
+
+        dat_met <- dat_lvl %>%
+          dplyr::filter(metier == met)
+
+        met_name <- unique(dat_met$metier_name)[1]
+
+        cat(
+          "##### ", met_name, " {.tabset}\n\n",
+          sep = ""
+        )
+
+
+        # ====================================================
+        # LEVEL 5: PERIOD
+        # ====================================================
+
+        for (per in c("2016-2024", "2024")) {
+
+          x <- dat_met %>%
+            dplyr::filter(period == per)
+
+          if (nrow(x) == 0) {
+            next
+          }
+
+          x <- x[1, ]
+
+          cat(
+            "###### ", per, "\n\n",
+            sep = ""
+          )
+
+          cat(
+            '<div class="map-row">',
+
+            '<div>',
+            '<img src="', x$fishing_effort,
+            '" alt="Fishing effort map - ', per, '">',
+            '</div>',
+
+            '<div>',
+            '<img src="', x$monitoring_effort,
+            '" alt="Monitoring effort map - ', per, '">',
+            '</div>',
+
+            '<div>',
+            '<img src="', x$monitoring_coverage,
+            '" alt="Monitoring coverage map - ', per, '">',
+            '</div>',
+
+            '</div>',
+
+            "\n\n",
+            sep = ""
+          )
+        }
+      }
+    }
+  }
+}
+
+# Close outer tabset
+cat("\n# {-}\n\n")

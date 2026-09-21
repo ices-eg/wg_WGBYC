@@ -2,6 +2,10 @@
 
 source("data.R")
 
+D2%>%filter(ctryname=="France")%>%group_by(year)%>%summarise(das=sum(daysAtSeaOb))
+D2%>%filter(ctryname=="France")%>%group_by(year)%>%summarise(das=sum(tripsOb))
+D2%>%filter(ctryname=="France",year%in%2022:2024)%>%summary
+
 #green table
 print("green table")
 greentableD1<-D1%>%

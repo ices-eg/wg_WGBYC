@@ -27,6 +27,9 @@ admin/**
  doc/**
  !doc/README.md
 
+#exclude secret file
+keyring.R
+
 # exclude html file
  *.html
 

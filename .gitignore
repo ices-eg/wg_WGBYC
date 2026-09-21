@@ -11,24 +11,24 @@ DS_Store
 !.gitignore
 
 # Data
-# exclude everything
-#data/**
+ exclude everything
+data/**
 
 # exception to the rule to keep the data directory structure 
-#!data/README.md
+!data/README.md
 
 # admin
 # exclude everything
-#admin/**
-#!admin/README.md
+admin/**
+!admin/README.md
 
 # admin
 # exclude everything
-# doc/**
-# !doc/README.md
+ doc/**
+ !doc/README.md
 
 # exclude html file
-# *.html
+ *.html
 
 # OS files
 .DS_Store

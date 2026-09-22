@@ -1,36 +1,53 @@
-library(ggplot2)
-library(dplyr)
-library(cowplot)
-library(icesTAF)
+###########################################
+#
+#
+#                 Tor A EM graphs
+#
+#
+#
+# R Version: 4.5.2
+# Author : Guillaume Chero
+# Date : September 2026
+##########################################
 
 
-source("data.R")
+# 1. Install packages ==================================================================
 
-#### calculate percentages for text ####
+lapply(c("tidyverse", "ggplot2", "dplyr", "cowplot", "icesTAF", "glue"), library, character.only = TRUE)
 
-#"Along with at-sea observers, this method yet represents the source of a majority of bycatch 
-#records reported (Figure 5), with 40% of reported mammal and 30% of seabird bycatch incidents recorded with EM.
 
-## Pivot the info
+
+# 2. Import DATA ==================================================================
+
+if(!exists("D1")){D1 <- data.table::fread(here("data","D1_wgbyc.csv"))}
+if(!exists("D2")){D2 <- data.table::fread(here("data","D2_wgbyc.csv"))}
+if(!exists("D3")){D3 <- data.table::fread(here("data","D3_wgbyc.csv"))}
+
+
+# 3. Parameters ==================================================================
+
+path_export = "./2026/outputs/"
+
+
+# 4. Make plot ==================================================================
+
+## 4.1 Pivot the info ====
 NofIncidents <- D3 %>%
   group_by(year, monitoringMethod, classname) %>%
   summarize(
     sum_incidents = sum(incidentsWithPingers, na.rm = TRUE) + sum(incidentsWithoutPingers, na.rm = TRUE),
   )
 
-#Use only Electronic Monitoring
+
+## 4.2 Use only Electronic Monitoring ====
 Aves <- NofIncidents %>%
   filter(classname == "Aves")
-
 Aves <- Aves %>%
   group_by(year, monitoringMethod) %>%
   summarise(sum_incidents = sum(sum_incidents)) %>%
   mutate(total_incidents_per_year = sum(sum_incidents, na.rm = TRUE)) %>%
   mutate(percentage = (sum_incidents / total_incidents_per_year) * 100)
 
-Aves
-
-#Use only Electronic Monitoring
 Mammalia <- NofIncidents %>%
   filter(classname == "Mammalia")
 
@@ -40,9 +57,7 @@ Mammalia <- Mammalia %>%
   mutate(total_incidents_per_year = sum(sum_incidents, na.rm = TRUE)) %>%
   mutate(percentage = (sum_incidents / total_incidents_per_year) * 100)
 
-Mammalia
-
-#### Trips per country per year ####
+## 4.3  Trips per country per year  ====
 
 #Use only Electronic Monitoring
 EM_monitoringeffort <- D2 %>%
@@ -53,7 +68,7 @@ EM_Grouped <- EM_monitoringeffort %>%
   summarize(total_tripsOb = sum(tripsOb, na.rm = TRUE),
             total_daysAtSeaOb = sum(daysAtSeaOb, na.rm = TRUE))
 
-# PLOT EM total trips observed
+## 4.4 PLOT EM total trips observed =======
 A <- ggplot(EM_Grouped, aes(x = year, y = total_daysAtSeaOb, fill = country)) +
   geom_bar(stat = "identity", position = "stack", colour = "black") +
   theme_bw() +
@@ -77,11 +92,12 @@ AB <- plot_grid(A + theme(legend.position = "none"),
                 rel_widths = c(1,1.2), 
                 nrow = 1)
 
-taf.png("2025/WGBYC2TAF/output/em_total_das.png", width = 800, height = 1000, res = 200)
+taf.png(glue(path_export, "em_total_das.png"), width = 800, height = 1000, res = 200)
 print(A)
 dev.off()
 
-#### N of incidents per year per taxa, stack countries ####
+
+### 4.5 N of incidents per year per taxa, stack countries ====
 
 #Use only Electronic Monitoring
 EM_taxa_bycatch <- D3 %>%
@@ -111,7 +127,7 @@ plt_individuals <- ggplot(EM_Taxa_Grouped, aes(x = year, y = sum_individuals, fi
   facet_wrap(~classname, scales = "free")
   #scale_x_continuous(limits = c(2018.5, max(EM_Taxa_Grouped$year+0.5))) #this is just to make all x-axes the same
 
-taf.png("2025/WGBYC2TAF/output/em_plt_individuals.png")
+taf.png(glue(path_export, "em_plt_individuals.png"))
 print(plt_individuals)
 dev.off()
 
@@ -127,7 +143,7 @@ plt_incidents <- ggplot(EM_Taxa_Grouped, aes(x = year, y = sum_incidents, fill =
   facet_wrap(~classname, scales = "free")
   #scale_x_continuous(limits = c(2018.5, max(EM_Taxa_Grouped$year+0.5))) #this is just to make all x-axes the same
 
-taf.png("2025/WGBYC2TAF/output/em_plt_incidents.png")
+taf.png(glue(path_export, "em_plt_incidents.png"))
 print(plt_incidents)
 dev.off()
 

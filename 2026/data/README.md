@@ -7,6 +7,18 @@ Generated on: 2026-09-22
 ├── 📄 D2_wgbyc.csv
 ├── 📄 D3_wgbyc.csv
 ├── 📄 README.md
+├── 📁 spatial
+│   ├── 📄 allgeo.rds
+│   └── 📁 ICES_ecoregions
+│       ├── 📄 DISCLAIMER_GIS.txt
+│       ├── 📄 ICES_ecoregions_20171207_erase_ESRI.cpg
+│       ├── 📄 ICES_ecoregions_20171207_erase_ESRI.dbf
+│       ├── 📄 ICES_ecoregions_20171207_erase_ESRI.prj
+│       ├── 📄 ICES_ecoregions_20171207_erase_ESRI.sbn
+│       ├── 📄 ICES_ecoregions_20171207_erase_ESRI.sbx
+│       ├── 📄 ICES_ecoregions_20171207_erase_ESRI.shp
+│       ├── 📄 ICES_ecoregions_20171207_erase_ESRI.shx
+│       └── 📄 README.md
 ├── 📁 templates
 │   └── 📄 reportTemplate.docx
 └── 📁 vocab

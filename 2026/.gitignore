@@ -28,14 +28,14 @@ doc/**
 
 # outputs 
 # exclude everything
-outputs/**
-!outputs/README.md
+#outputs/**
+#!outputs/README.md
 
 #exclude secret file
 keyring.R
 
 # exclude html file
-*.html
+#*.html
 
 # OS files
 .DS_Store

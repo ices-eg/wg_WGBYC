@@ -13,7 +13,6 @@ D5.csv
 # Data
 #exclude everything
 data/**
-
 # exception to the rule to keep the data directory structure 
 !data/README.md
 
@@ -36,7 +35,7 @@ outputs/**
 keyring.R
 
 # exclude html file
- *.html
+*.html
 
 # OS files
 .DS_Store

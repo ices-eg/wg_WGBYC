@@ -1,5 +1,5 @@
 ---
-title: "Data reading"
+title: "Tor Ai / WGBYC 2026"
 subtittle: "subtitle" 
 date: "`r format(Sys.Date(), '%d %B %Y')`"
 author: Laurent Dubroca 
@@ -13,6 +13,7 @@ format:
     html-math-method: katex
     css: styles.css
     code-fold: true
+    page-layout: full
 execute:
     warning: false
 ---
@@ -22,7 +23,6 @@ execute:
 Analyses and results in a reproducible format (code and output) following
 reproducible framework [@powers2019].
 
-Data read and co.
 
 
 ```{r renderstuff,eval=F,include=F}
@@ -39,6 +39,7 @@ library(readxl)
 library(openxlsx)
 library(here)
 library(dplyr)
+library(tidyr)
 library(ggplot2)
 library(arrow)
 library(data.table)
@@ -50,6 +51,9 @@ library(sf)
 library(httr)
 library(jsonlite)
 require(icesConnect)
+library(officer)
+library(flextable)
+library(ggalluvial)
 
 
 here::i_am("project.Rproj")
@@ -57,15 +61,28 @@ here::i_am("project.Rproj")
 
 # Parameters
 
-```{r dataco,eval=T,include=T}
+Some fixed parameters if needed here.
+
+```{r parameters,eval=T,include=T}
+#define the most recent year of the data provided (aka the present year minus one as a practical guess)
+currentyear <- as.numeric(substr(Sys.Date(), 1, 4)) - 1
+print(currentyear)
+```
+
+# Data
+
+WGBYC wunderbar API use + ICES vocab request to ensure reproducibility (just
+in case if, for example, some data are submitted again).
+
+```{r dataco,eval=T,include=F}
 #|
 #source keyring (token stuff)
-keyringfile<-here("analyses","keyring.R")
-if(file.exists(keyringfile)){
-	source(keyringfile)
-}else{
-	stop("keyring file not found")
-}	
+keyringfile <- here("analyses", "keyring.R")
+if (file.exists(keyringfile)) {
+    source(keyringfile)
+} else {
+    stop("keyring file not found")
+}
 #keyring file is a short R code used to tokenize data exchange
 #go to https://data.ices.dk/token to generate the token
 #the sourced code is :
@@ -75,81 +92,1004 @@ if(file.exists(keyringfile)){
 #"thelongcaracterchainofthetokenprovidedbyiceshastobypastedhere",
 #    username = "john.doe"
 #)
- 
-# read the data from ices API
-linkD1<-"https://bycatch.ices.dk/api/GetD1_Fishing_effort"
-linkD2<-"https://bycatch.ices.dk/api/GetD2_Bycatch_monitoring_effort"
-linkD3<-"https://bycatch.ices.dk/api/GetD3_BycatchEvent"
+
 # data request
 
-if(file.exists(here("data","D1_wgbyc.csv"))){
+if (file.exists(here("data", "D1_wgbyc.csv"))) {
     #read dowloaded data
-    D1<-fread(here("data","D1_wgbyc.csv"))
-    D2<-fread(here("data","D2_wgbyc.csv"))
-    D3<-fread(here("data","D3_wgbyc.csv"))
-}else{
-    options(icesSAG.use_token=T)
-    resp1<-ices_get_jwt(linkD1)
-    D1<-content(resp1,as="text")
-    D1<-fromJSON(D1)
-    resp2<-ices_get_jwt(linkD2)
-    D2<-content(resp2,as="text")
-    D2<-fromJSON(D2)
+    D1 <- fread(here("data", "D1_wgbyc.csv"))
+    D2 <- fread(here("data", "D2_wgbyc.csv"))
+    D3 <- fread(here("data", "D3_wgbyc.csv"))
+} else {
+    # read the data from ices API
+    linkD1 <- "https://bycatch.ices.dk/api/GetD1_Fishing_effort"
+    linkD2 <- "https://bycatch.ices.dk/api/GetD2_Bycatch_monitoring_effort"
+    linkD3 <- "https://bycatch.ices.dk/api/GetD3_BycatchEvent"
+    options(icesSAG.use_token = T)
+    resp1 <- ices_get_jwt(linkD1)
+    D1 <- content(resp1, as = "text")
+    D1 <- fromJSON(D1)
+    resp2 <- ices_get_jwt(linkD2)
+    D2 <- content(resp2, as = "text")
+    D2 <- fromJSON(D2)
     #D3 request by year: API slow by construction
-    D3<-data.frame()
-    for(idyear in 2017:2025){
-            print(idyear)
-            resp3<-ices_get_jwt(paste0(linkD3,"?year=",idyear))
-            D3tmp<-content(resp3,as="text")
-            D3tmp<-fromJSON(D3tmp)
-            D3<-rbind(D3,D3tmp)
+    D3 <- data.frame()
+    for (idyear in 2017:2025) {
+        print(idyear)
+        resp3 <- ices_get_jwt(paste0(linkD3, "?year=", idyear))
+        D3tmp <- content(resp3, as = "text")
+        D3tmp <- fromJSON(D3tmp)
+        D3 <- rbind(D3, D3tmp)
     }
+    #filtering on year of interest
+    D1 <- D1 %>% filter(year %in% 2017:2025)
+    D2 <- D2 %>% filter(year %in% 2017:2025)
+    D3 <- D3 %>% filter(year %in% 2017:2025)
     #save file in csv format into data dir
-    write.csv(D1,file=here("data","D1_wgbyc.csv"),row.names=F)
-    write.csv(D2,file=here("data","D2_wgbyc.csv"),row.names=F)
-    write.csv(D3,file=here("data","D3_wgbyc.csv"),row.names=F)
+    write.csv(D1, file = here("data", "D1_wgbyc.csv"), row.names = F)
+    write.csv(D2, file = here("data", "D2_wgbyc.csv"), row.names = F)
+    write.csv(D3, file = here("data", "D3_wgbyc.csv"), row.names = F)
 }
 
 #get extra info to label stuff
-if (F) {
+if (file.exists(here("data", "vocab","BYC_Mon812Type.csv"))) {
     #read dowloaded data
-    listvocab<-c("IC_Country","GearType","GearGroup")
-    f1<-function(vocabname){
-        tmp<-fread(here("data","vocab",paste0(vocabname,".csv")))
-        assign(vocabname,tmp,".GlobalEnv")
+    listvocab <- c(
+        "ISO_3166",
+        "GearType",
+        "GearGroup",
+        "BYC_MonProgr",
+        "BYC_SamplingProtocol",
+        "BYC_MonMethod",
+        "BYC_Mon812Type"
+    )
+    f1 <- function(vocabname) {
+        tmp <- fread(here("data", "vocab", paste0(vocabname, ".csv")))
+        assign(vocabname, tmp, pos=".GlobalEnv")
     }
-    lapply(listvocab,f1)
-}else{
+    lapply(listvocab, f1)
+} else {
     #downloaded locally some ICES vocab
-    listvocab<-c("IC_Country","GearType","GearGroup")
-    f1<-function(vocabname){
+    listvocab <- c(
+        "ISO_3166",
+        "GearType",
+        "GearGroup",
+        "BYC_MonProgr",
+        "BYC_SamplingProtocol",
+        "BYC_MonMethod",
+        "BYC_Mon812Type"
+    )
+    f1 <- function(vocabname) {
         pipo <- icesVocab::getCodeList(vocabname)
-        write.csv(pipo, file = here("data/vocab",paste0(vocabname,".csv")),row.names=F)
+        write.csv(
+            pipo,
+            file = here("data/vocab", paste0(vocabname, ".csv")),
+            row.names = F
+        )
     }
-    lapply(listvocab,f1)
+    lapply(listvocab, f1)
 }
-
-
-
 ```
 
 
 # Exploratory data analysis 
 
-```{r explo1,cache=TRUE,eval=T,echo=T,cache=F,include=T}
+## Hardcore QC
 
-summary1<-D1%>%
-    group_by(year,ecoregion)%>%
-    summarise(eff=sum(daaysAtSeaF,na.rm=T))
+- what is the vocab references for the country code (ISO_3166 as a guess) into
+  the WGBYC database? -> need to fully describe the format both for submission
+  and for use. 
+
+
+## Some numbers
+Quick counting things.
+
+```{r explo1,cache=TRUE,eval=T,echo=T,include=T}
+
+rez1 <- D1 %>%
+    filter(year > 2017) %>%
+    group_by(year, ecoregion) %>%
+    summarise(eff = sum(daysAtSeaF, na.rm = T))
+```
+
+# Labelling stuff 
+
+Data is labelled for human.
+
+```{r labeldata,cache=TRUE,eval=T,echo=T,include=T}
+#add human readable label with some basic test in case ICES vocab being not consistent
+#D1
+tmp <- D1 %>%
+    left_join(
+        ISO_3166 %>% transmute(country = Key, country_name = Description),
+        by = c("country")
+    ) %>%
+    left_join(
+        GearGroup %>% transmute(metierL3 = Key, metierL3_name = Description),
+        by = c("metierL3")
+    )
+if (nrow(tmp) != nrow(D1)) {
+    stop("pb D1 explo1")
+} else {
+    D1 <- tmp
+    rm(tmp)
+}
+#D2
+tmp <- D2 %>%
+    left_join(
+        ISO_3166 %>% transmute(country = Key, country_name = Description),
+        by = c("country")
+    ) %>%
+    left_join(
+        GearGroup %>% transmute(metierL3 = Key, metierL3_name = Description),
+        by = c("metierL3")
+    ) %>%
+    left_join(
+        BYC_MonMethod %>%
+            transmute(monitoringMethod = Key, monitoringMethod_name = Description),
+        by = c("monitoringMethod")
+    ) %>%
+    left_join(
+        BYC_MonProgr%>%
+            transmute(
+                monitoringProgramType = Key,
+                monitoringProgramType_name = Description
+            ),
+        by = c("monitoringProgramType")
+    )
+if (nrow(tmp) != nrow(D2)) {
+    stop("pb D2 explo1")
+} else {
+    D2 <- tmp
+    rm(tmp)
+}
+#D3
+tmp <- D3 %>%
+    left_join(
+        ISO_3166 %>% transmute(country = Key, country_name = Description),
+        by = c("country")
+    ) %>%
+    left_join(
+        GearGroup %>% transmute(metierL3 = Key, metierL3_name = Description),
+        by = c("metierL3")
+    )%>%
+    left_join(
+        BYC_MonMethod %>%
+            transmute(monitoringMethod = Key, monitoringMethod_name = Description),
+        by = c("monitoringMethod")
+    ) %>%
+    left_join(
+        BYC_MonProgr%>%
+            transmute(
+                monitoringProgramType = Key,
+                monitoringProgramType_name = Description
+            ),
+        by = c("monitoringProgramType")
+    )
+if (nrow(tmp) != nrow(D3)) {
+    stop("pb D3 explo1")
+} else {
+    D3 <- tmp
+    rm(tmp)
+}
+```
+
+# Figures
+
+# Green table
+
+```{r greentable,cache=TRUE,eval=T,echo=T,include=T}
+#| column: page
+## green table output for WGBYC report
+
+
+#green table
+greentableD1<-D1%>%
+	group_by(country_name,year)%>%
+	summarise(n=n())%>%
+	mutate(year=paste0("D1_",year))%>%
+	tidyr::pivot_wider(values_from=n,names_from=year,names_sort=T)
+greentableD2<-D2%>%
+	group_by(country_name,year)%>%
+	summarise(n=n())%>%
+	mutate(year=paste0("D2_",year))%>%
+	tidyr::pivot_wider(values_from=n,names_from=year,names_sort=T)
+greentableD3<-D3%>%
+	group_by(country_name,year)%>%
+	summarise(n=n())%>%
+	mutate(year=paste0("D3_",year))%>%
+	tidyr::pivot_wider(values_from=n,names_from=year,names_sort=TRUE)
+greentable<-full_join(full_join(greentableD1,greentableD2),greentableD3)%>%
+	ungroup()%>%data.frame()
+
+#build up a submission table 
+subtableD1<-D1%>%
+	group_by(country_name,year)%>%
+	summarise(n=paste0(sort(unique(submissionYear)),collapse=","))%>%
+	mutate(year=paste0("D1_",year))%>%
+	tidyr::pivot_wider(values_from=n,names_from=year,names_sort=T)
+subtableD2<-D2%>%
+	group_by(country_name,year)%>%
+	summarise(n=paste0(sort(unique(submissionYear)),collapse=","))%>%
+	mutate(year=paste0("D2_",year))%>%
+	tidyr::pivot_wider(values_from=n,names_from=year,names_sort=T)
+subtableD3<-D3%>%
+	group_by(country_name,year)%>%
+	summarise(n=paste0(sort(unique(submissionYear)),collapse=","))%>%
+	mutate(year=paste0("D3_",year))%>%
+	tidyr::pivot_wider(values_from=n,names_from=year,names_sort=T)
+subtable<-full_join(full_join(subtableD1,subtableD2),subtableD3)%>%
+	ungroup()%>%data.frame()
+fulltable<-subtable
+#add the number of record in subtable with a good old double loop du seigneur
+for(i in 1:nrow(subtable)){
+    for(j in 2:ncol(subtable)){
+        fulltable[i,j]<-paste(subtable[i,j],paste0("(",greentable[i,j],")"),sep="\n")
+    }
+}
+#cosmetic
+nametab<-names(greentable)[-1]
+nametab<-paste0(nametab,"='",substr(nametab,4,7),"'",collapse=",")
+nametab<-eval(parse(text=paste0("list(",nametab,")")))
+nametab<-c(list(country_name="Year of data"),nametab)
+bgcolormat<-ifelse(greentable[,-1]<0.00001,"white","darkgreen")
+charcolormat<-matrix("white",nrow=nrow(subtable),ncol=ncol(subtable)-1)
+charcolormat[(currentyear+1)==subtable[,-1]]<-"yellow"
+#charcolormat["2021,2023"==subtable[,-1]]<-"yellow"
+big_border<-fp_border(color="black", width = 2)
+#remove number
+#greentable[is.na(greentable)]<-0
+
+
+#param to fix column formatting
+nbcolyear<-(ncol(subtable)-1)/3
+posbigline<-c(1,nbcolyear+1,1+nbcolyear*2)
+
+
+ftgreentable<-flextable(fulltable)%>%
+	bg(j=2:ncol(greentable),bg=bgcolormat)%>%
+	color(j=2:ncol(greentable),color=charcolormat) %>%
+	set_header_labels(values=nametab) %>%
+	add_header_row(values=c("","Fishing Effort (D1 table)",
+				"Monitoring Effort (D2 table)",
+				"Bycatch Events (D3 table)"),colwidths=c(1,nbcolyear,nbcolyear,nbcolyear))%>%
+	theme_box()%>%
+	align(align="center",part="header")%>%
+	align(align="center",part="body")%>%
+	vline(j=posbigline,border=big_border)%>%
+	fontsize(part="all",size=5)%>%
+	autofit(add_w=0,add_h=0)
+ftgreentable
+
+#save as docx object 
+save_as_docx(ftgreentable,path=here("outputs","greentable.docx"),
+	     pr_section=prop_section(
+				page_size=page_size(orient="landscape"),
+				page_margins=page_mar(bottom=0.1,top=.1,right=.1,left=.1,header=0,footer=0,gutter=0)
+				)
+		)
+
+
+```
+
+# Monitoring methods overview DAS
+
+By days at sea
+
+```{r monitoringoverviewdas,cache=TRUE,eval=T,echo=T,include=T}
+# prepare data for fig 3.3 (reported monitoring method)
+#all
+monmethall<-D2%>%group_by(monitoringMethod_name,year)%>%
+	summarise(das=sum(daysAtSeaOb,na.rm=T),.groups="drop") %>% 
+	group_by(year)%>%
+	mutate(tot=sum(das))%>%
+	ungroup()%>%
+	mutate(reldas=das/tot*100)
+#by ctry
+monmethctry<-D2%>%group_by(monitoringMethod_name,country_name,year)%>%
+	summarise(das=sum(daysAtSeaOb,na.rm=T),.groups="drop") %>%
+	group_by(year,country_name)%>%
+	mutate(tot=sum(das))%>%
+	ungroup()%>%
+	mutate(reldas=das/tot*100)
+#plt output here
+#monitoring methods overview
+plt<-ggplot(monmethall,aes(x=year,y=reldas,
+			    stratum=monitoringMethod_name,
+			    alluvium=monitoringMethod_name,
+			    fill=monitoringMethod_name,
+			    label=monitoringMethod_name))+
+	geom_flow(stat="alluvium")+
+	geom_stratum()+
+	theme_bw()+
+	labs(fill="Monitoring method")+
+	ylab("Proportion of annual DAS by monitoring method (%)")
+print(plt)
+png(here("outputs","monitoring_method_overview.png"),res=300,width=1600,height=1200,unit="px")
+print(plt)
+dev.off()
+
+#clean 
+plt<-ggplot(monmethctry,aes(x=year,y=reldas,
+			    stratum=monitoringMethod_name,
+			    alluvium=monitoringMethod_name,
+			    fill=monitoringMethod_name,
+			    label=monitoringMethod_name))+
+	geom_flow(stat="alluvium")+
+	geom_stratum()+
+	facet_wrap(~country_name)+
+	theme_bw()+
+	theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+	labs(fill="Monitoring method")+
+	ylab("Proportion of annual DAS by monitoring method (%)")
+print(plt)
+png(here("outputs","monitoring_method_country.png"),res=300,width=1600,height=1200,unit="px")
+print(plt)
+dev.off()
+
+#moniroting by program 
+monitoringProgramType_namectry<-D2%>%group_by(monitoringProgramType_name,country_name,year)%>%
+	summarise(das=sum(daysAtSeaOb,na.rm=T),.groups="drop") %>%
+	group_by(year,country_name)%>%
+	mutate(tot=sum(das))%>%
+	ungroup()%>%
+	mutate(reldas=das/tot*100)
+#a graph
+plt<-ggplot(monitoringProgramType_namectry,aes(x=year,y=reldas,
+			    stratum=monitoringProgramType_name,
+			    alluvium=monitoringProgramType_name,
+			    fill=monitoringProgramType_name,
+			    label=monitoringProgramType_name))+
+	geom_flow(stat="alluvium")+
+	geom_stratum()+
+	facet_wrap(~country_name)+
+	theme_bw()+
+	theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+	labs(fill="Monitoring program")+
+	ylab("Proportion of annual DAS by monitoring program (%)")
+
+print(plt)
+png(here("outputs","monitoring_program_country.png"),res=300,width=1600,height=1200,unit="px")
+print(plt)
+dev.off()
+
+#
+# incidents by montoring program and species class
+#
+pipo<-D3
+pipo$nbinc<-apply(D3%>%select(incidentsWithPingers,incidentsWithoutPingers),1,sum,na.rm=T)
+pipo<-pipo%>%
+	mutate(classname=ifelse(is.na(classname),"Reptiles",classname))%>%
+	mutate(newclass=ifelse(grepl("Aves|Elasmo|Mamma|Rept",classname),classname,"Other"))
+
+incprog<-pipo%>%group_by(monitoringMethod_name,year,newclass)%>%
+	summarise(inc=sum(nbinc,na.rm=T),.groups="drop") %>%
+	ungroup()
+#a graph
+plt<-ggplot(incprog,aes(x=as.factor(year),y=inc,
+			    stratum=monitoringMethod_name,
+			    alluvium=monitoringMethod_name,
+			    fill=monitoringMethod_name,
+			    label=monitoringMethod_name))+
+	geom_flow(stat="alluvium")+
+	geom_stratum()+
+	facet_wrap(~newclass,scale="free")+
+	theme_bw()+
+	theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+	      legend.position = "inside",
+	      legend.position.inside = c(.85,0.25))+
+	labs(fill="Monitoring method")+
+	ylab("Number of reported incidents")+xlab("")
+
+print(plt)
+png(here("outputs","incidents_by_monitoringProgram.png"),res=300,width=1600,height=1200,unit="px")
+print(plt)
+dev.off()
+
+
+
+#prepare data for sample coverage by monitoring effort by gear by georegions
+monmethgear<-D2%>%group_by(monitoringMethod_name,ecoregion,metierL3_name,year)%>%
+	summarise(das=sum(daysAtSeaOb,na.rm=T),.groups="drop") 
+
+#monitoring methods: ecoregion/gear view
+monmethgear1<-D2%>%group_by(monitoringMethod_name,ecoregion,metierL3_name,year)%>%
+	summarise(das=sum(daysAtSeaOb,na.rm=T),.groups="drop")%>%
+	filter(!monitoringMethod_name%in%c("Logbook","Port observers"))
+monmethgear2<-monmethgear1%>%
+	mutate(metierL3_name="All metier")%>%
+	group_by(monitoringMethod_name,ecoregion,metierL3_name,year)%>%
+	summarise(das=sum(das,na.rm=T),.groups="drop")
+monmethgear<-rbind(monmethgear1,monmethgear2)%>%
+	mutate(monitoringMethod_name=as.factor(monitoringMethod_name))
+
+
+listecoregion<-na.omit(unique(monmethgear$ecoregion))
+for(i in listecoregion){
+	tmp<-monmethgear[monmethgear$ecoregion==i,]%>%
+		filter(!is.na(metierL3_name))
+	plt<-ggplot(tmp,aes(x=year,y=das,
+			    stratum=monitoringMethod_name,
+			    alluvium=monitoringMethod_name,
+			    fill=monitoringMethod_name,
+			    label=monitoringMethod_name))+
+	geom_flow(stat="alluvium")+
+	geom_stratum()+
+	facet_wrap(~metierL3_name,scale="free")+
+	theme_bw()+
+	theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+	labs(fill="Monitoring method")+
+	ggtitle(i)+
+	ylab("Sum of annual DAS by monitoring method")
+        print(plt)
+	filename<-here("outputs",paste0("monitoring_method_",gsub(" ","",i),".png"))
+        png(filename,res=300,width=1600,height=1200,unit="px")
+	print(plt)
+	dev.off()
+}
+
+#prepare data for sample coverage by monitoring effort by georegions
+monmethecoregion<-D2%>%group_by(monitoringMethod_name,ecoregion,year)%>%
+	summarise(das=sum(daysAtSeaOb,na.rm=T),.groups="drop") %>%
+	filter(!is.na(ecoregion))
+
+	plt<-ggplot(monmethecoregion%>%mutate(ecoregion=sub(" ","\n",ecoregion))
+		    ,aes(x=year,y=das,
+			    stratum=monitoringMethod_name,
+			    alluvium=monitoringMethod_name,
+			    fill=monitoringMethod_name,
+			    label=monitoringMethod_name))+
+	geom_flow(stat="alluvium")+
+	geom_stratum()+
+	facet_wrap(~ecoregion,scale="free")+
+	theme_bw()+
+	theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+	labs(fill="Monitoring method")+
+	ggtitle("Monitoring program by ecoregion")+
+	ylab("Sum of annual DAS by monitoring method")
+	filename<-here("outputs","monitoring_method_ecoregion.png")
+print(plt)
+png(filename,res=300,width=1600,height=1200,unit="px")
+print(plt)
+dev.off()
+```
+
+
+# Monitoring methods overview trips
+
+By trips : last year figures were wrong (according to the script).
+
+```{r monitoringoverviewtrips,cache=TRUE,eval=T,echo=T,include=T}
+# prepare data for fig 3.3 (reported monitoring method)
+#all
+monmethall<-D2%>%group_by(monitoringMethod_name,year)%>%
+	summarise(trips=sum(tripsOb,na.rm=T),.groups="drop") %>% 
+	group_by(year)%>%
+	mutate(tot=sum(trips))%>%
+	ungroup()%>%
+	mutate(reltrips=trips/tot*100)
+#by ctry
+monmethctry<-D2%>%group_by(monitoringMethod_name,country_name,year)%>%
+	summarise(trips=sum(tripsOb,na.rm=T),.groups="drop") %>%
+	group_by(year,country_name)%>%
+	mutate(tot=sum(trips))%>%
+	ungroup()%>%
+	mutate(reltrips=trips/tot*100)
+#plt output here
+#monitoring methods overview
+plt<-ggplot(monmethall,aes(x=year,y=reltrips,
+			    stratum=monitoringMethod_name,
+			    alluvium=monitoringMethod_name,
+			    fill=monitoringMethod_name,
+			    label=monitoringMethod_name))+
+	geom_flow(stat="alluvium")+
+	geom_stratum()+
+	theme_bw()+
+	labs(fill="Monitoring method")+
+	ylab("Proportion of annual trips by monitoring method (%)")
+print(plt)
+filename<-here("outputs","monitoring_method_overview_trips.png")
+png(filename,res=300,width=1600,height=1200,unit="px")
+print(plt)
+dev.off()
+
+#clean 
+plt<-ggplot(monmethctry,aes(x=year,y=reltrips,
+			    stratum=monitoringMethod_name,
+			    alluvium=monitoringMethod_name,
+			    fill=monitoringMethod_name,
+			    label=monitoringMethod_name))+
+	geom_flow(stat="alluvium")+
+	geom_stratum()+
+	facet_wrap(~country_name)+
+	theme_bw()+
+	theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+	labs(fill="Monitoring method")+
+	ylab("Proportion of annual trips by monitoring method (%)")
+print(plt)
+filename<-here("outputs","monitoring_method_country_trips.png")
+png(filename,res=300,width=1600,height=1200,unit="px")
+print(plt)
+dev.off()
+
+#moniroting by program 
+monprogctry<-D2%>%group_by(monitoringProgramType_name,country_name,year)%>%
+	summarise(trips=sum(tripsOb,na.rm=T),.groups="drop") %>%
+	group_by(year,country_name)%>%
+	mutate(tot=sum(trips))%>%
+	ungroup()%>%
+	mutate(reltrips=trips/tot*100)
+#a graph
+plt<-ggplot(monprogctry,aes(x=year,y=reltrips,
+			    stratum=monitoringProgramType_name,
+			    alluvium=monitoringProgramType_name,
+			    fill=monitoringProgramType_name,
+			    label=monitoringProgramType_name))+
+	geom_flow(stat="alluvium")+
+	geom_stratum()+
+	facet_wrap(~country_name)+
+	theme_bw()+
+	theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+	labs(fill="Monitoring program")+
+	ylab("Proportion of annual trips by monitoring program (%)")
+
+print(plt)
+filename<-here("outputs","monitoring_program_country_trips.png")
+png(filename,res=300,width=1600,height=1200,unit="px")
+print(plt)
+dev.off()
+
+#prepare data for sample coverage by monitoring effort by gear by georegions
+monmethgear<-D2%>%group_by(monitoringMethod_name,ecoregion,metierL3_name,year)%>%
+	summarise(trips=sum(daysAtSeaOb,na.rm=T),.groups="drop") 
+
+#monitoring methods: ecoregion/gear view
+monmethgear1<-D2%>%group_by(monitoringMethod_name,ecoregion,metierL3_name,year)%>%
+	summarise(trips=sum(tripsOb,na.rm=T),.groups="drop")%>%
+	filter(!monitoringMethod_name%in%c("Logbook","Port observers"))
+monmethgear2<-monmethgear1%>%
+	mutate(metierL3_name="All metier")%>%
+	group_by(monitoringMethod_name,ecoregion,metierL3_name,year)%>%
+	summarise(trips=sum(trips,na.rm=T),.groups="drop")
+monmethgear<-rbind(monmethgear1,monmethgear2)%>%
+	mutate(monitoringMethod_name=as.factor(monitoringMethod_name))
+
+
+listecoregion<-na.omit(unique(monmethgear$ecoregion))
+for(i in listecoregion){
+	tmp<-monmethgear[monmethgear$ecoregion==i,]%>%
+		filter(!is.na(metierL3_name))
+	plt<-ggplot(tmp,aes(x=year,y=trips,
+			    stratum=monitoringMethod_name,
+			    alluvium=monitoringMethod_name,
+			    fill=monitoringMethod_name,
+			    label=monitoringMethod_name))+
+	geom_flow(stat="alluvium")+
+	geom_stratum()+
+	facet_wrap(~metierL3_name,scale="free")+
+	theme_bw()+
+	theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+	labs(fill="Monitoring method")+
+	ggtitle(i)+
+	ylab("Sum of annual trips by monitoring method")
+        print(plt)
+	filename<-here("outputs",paste0("monitoring_method_",gsub(" ","",i),"_trips.png"))
+        png(filename,res=300,width=1600,height=1200,unit="px")
+	print(plt)
+	dev.off()
+}
+
+#prepare data for sample coverage by monitoring effort by georegions
+monmethecoregion<-D2%>%group_by(monitoringMethod_name,ecoregion,year)%>%
+	summarise(trips=sum(tripsOb,na.rm=T),.groups="drop") %>%
+	filter(!is.na(ecoregion))
+
+	plt<-ggplot(monmethecoregion%>%mutate(ecoregion=sub(" ","\n",ecoregion))
+		    ,aes(x=year,y=trips,
+			    stratum=monitoringMethod_name,
+			    alluvium=monitoringMethod_name,
+			    fill=monitoringMethod_name,
+			    label=monitoringMethod_name))+
+	geom_flow(stat="alluvium")+
+	geom_stratum()+
+	facet_wrap(~ecoregion,scale="free")+
+	theme_bw()+
+	theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+	labs(fill="Monitoring method")+
+	ggtitle(i)+
+	ylab("Sum of annual trips by monitoring method")
+        print(plt)
+	filename<-here("outputs","monitoring_method_ecoregion_trips.png")
+        png(filename,res=300,width=1600,height=1200,unit="px")
+	print(plt)
+	dev.off()
+
+```
+
+# EM figures 
+
+
+```{r EMfig,cache=TRUE,eval=T,echo=T,include=T}
+
+#### calculate percentages for text ####
+
+#"Along with at-sea observers, this method yet represents the source of a majority of bycatch 
+#records reported (Figure 5), with 40% of reported mammal and 30% of seabird bycatch incidents recorded with EM.
+
+## Pivot the info
+NofIncidents <- D3 %>%
+  group_by(year, monitoringMethod_name, classname) %>%
+  summarize(
+    sum_incidents = sum(incidentsWithPingers, na.rm = TRUE) + sum(incidentsWithoutPingers, na.rm = TRUE),
+  )
+
+#Use only Electronic Monitoring
+Aves <- NofIncidents %>%
+  filter(classname == "Aves")
+
+Aves <- Aves %>%
+  group_by(year, monitoringMethod_name) %>%
+  summarise(sum_incidents = sum(sum_incidents)) %>%
+  mutate(total_incidents_per_year = sum(sum_incidents, na.rm = TRUE)) %>%
+  mutate(percentage = (sum_incidents / total_incidents_per_year) * 100)
+
+Aves
+
+#Use only Electronic Monitoring
+Mammalia <- NofIncidents %>%
+  filter(classname == "Mammalia")
+
+Mammalia <- Mammalia %>%
+  group_by(year, monitoringMethod_name) %>%
+  summarise(sum_incidents = sum(sum_incidents)) %>%
+  mutate(total_incidents_per_year = sum(sum_incidents, na.rm = TRUE)) %>%
+  mutate(percentage = (sum_incidents / total_incidents_per_year) * 100)
+
+Mammalia
+
+#### Trips per country per year ####
+
+#Use only Electronic Monitoring
+EM_monitoringeffort <- D2 %>%
+  filter(monitoringMethod == "EM")
+## Pivot the info
+EM_Grouped <- EM_monitoringeffort %>%
+  group_by(year, country_name) %>%
+  summarize(total_tripsOb = sum(tripsOb, na.rm = TRUE))
+
+# PLOT EM total trips observed
+plt <- ggplot(EM_Grouped, aes(x = year, y = total_tripsOb, fill = country_name)) +
+  geom_bar(stat = "identity", position = "stack") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
+  labs(fill = "Country") +
+  ylab("Total trips observed using EM")
+
+print(plt)
+filename<-here("outputs","EM_trips_obs_country.png")
+png(filename,res=300,width=1600,height=1200,unit="px")
+print(plt)
+dev.off()
+
+#### N of incidents per year per taxa, stack countries ####
+
+#Use only Electronic Monitoring
+EM_taxa_bycatch <- D3 %>%
+  filter(monitoringMethod == "EM")
+
+# Drop na values and drop teleostei (Because only 3 incidents! Check this later if needed!)
+EM_taxa_bycatch <- EM_taxa_bycatch %>%
+  filter(!is.na(classname) & classname != "Teleostei")
+
+## Pivot the info
+EM_Taxa_Grouped <- EM_taxa_bycatch %>%
+  group_by(year, country_name, classname) %>%
+  summarize(
+    sum_incidents = sum(incidentsWithPingers, na.rm = TRUE) + sum(incidentsWithoutPingers, na.rm = TRUE),
+    sum_individuals = sum(individualsWithPingers, na.rm = TRUE) + sum(individualsWithoutPingers, na.rm = TRUE)
+  )
+
+#Plot individuals per taxa
+plt<- ggplot(EM_Taxa_Grouped, aes(x = year, y = sum_individuals, fill = country_name)) +
+  geom_bar(stat = "identity", position = "stack") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
+  labs(fill = "Country") +
+  ylab("Total number of individuals") +
+  facet_wrap(~classname, scales = "free") +
+  scale_x_continuous(limits = c(2018.5, max(EM_Taxa_Grouped$year+0.5))) #this is just to make all x-axes the same
+
+print(plt)
+filename<-here("outputs","EM_individuals_country.png")
+png(filename,res=300,width=1600,height=1200,unit="px")
+print(plt)
+dev.off()
+
+#Plot incidents per taxa
+plt<- ggplot(EM_Taxa_Grouped, aes(x = year, y = sum_incidents, fill = country_name)) +
+  geom_bar(stat = "identity", position = "stack") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
+  labs(fill = "Country") +
+  ylab("Total number of incidents") +
+  facet_wrap(~classname, scales = "free") +
+  scale_x_continuous(limits = c(2018.5, max(EM_Taxa_Grouped$year+0.5))) #this is just to make all x-axes the same
+  plot(plt)
+
+print(plt)
+filename<-here("outputs","EM_incidents_country.png")
+png(filename,res=300,width=1600,height=1200,unit="px")
+print(plt)
+dev.off()
+
+
+
+
+
 
 
 
 ```
+
+# Long tables production 
+
+Text
+
+```{r longtab,cache=TRUE,eval=T,echo=T,include=T}
+#long-table-container style="max-height: 500px; overflow-y: auto;"
+
+#big long useless table
+#Annex_table
+tab2<-D2%>%
+	filter(year==currentyear)%>%
+	group_by(ecoregion,areaCode,metierL3,monitoringMethod)%>%
+	summarise(dasobs=sum(daysAtSeaOb,na.rm=T))%>%
+	ungroup()
+tab1<-D1%>%
+	filter(year==currentyear)%>%
+	group_by(ecoregion,metierL3,areaCode)%>%
+	summarise(dastot=sum(daysAtSeaF,na.rm=T))%>%
+	ungroup()
+tab3<-D3%>%
+	filter(year==currentyear)%>%
+	group_by(ecoregion,areaCode,metierL3,monitoringMethod,species,classname)%>%
+	summarise(nb=sum(individualsWithPingers,individualsWithoutPingers,na.rm=T),
+		  inc=sum(incidentsWithPingers,incidentsWithoutPingers,na.rm=T))%>%
+	ungroup()
+
+tab123<-left_join(left_join(tab2,tab1),tab3)%>%filter(!is.na(species))%>%
+	transmute(ecoregion,areaCode,metierL3,dastot,monitoringMethod,dasobs,
+		  moncov=100*(dasobs/dastot),classname,species,nb,inc)%>%
+	mutate(dasobs=ifelse(dasobs==0,NA,dasobs))%>%
+	mutate(moncov=ifelse(dasobs==0,NA,moncov))%>%
+	transmute(Ecoregion=ecoregion,
+		  AreaCode=areaCode,
+		  MetierL3=metierL3,
+		  `Fishing Effort (das)`=dastot,
+		  MonitoringMethod=monitoringMethod,
+		  `Total Observed Effort (das)`=dasobs,
+		  `Monitoring Coverage (%)`=moncov,
+		  classname,Species=species,
+		  Total_No_Specimens=nb,
+		  Incidents=inc)
+        
+head(tab123)
+
+#write excel file
+wb<-createWorkbook()
+addWorksheet(wb,1)
+writeData(wb,1,tab123)
+saveWorkbook(wb,file=here("outputs","TOR_A_long_table_bycatch_only.xlsx"),overwrite=T)
+
+#big long useless table with all info
+#Annex_table
+tab2<-D2%>%
+	filter(year==currentyear)%>%
+	group_by(ecoregion,areaCode,metierL3,monitoringMethod)%>%
+	summarise(dasobs=sum(daysAtSeaOb,na.rm=T))%>%
+	ungroup()
+tab1<-D1%>%
+	filter(year==currentyear)%>%
+	group_by(ecoregion,metierL3,areaCode)%>%
+	summarise(dastot=sum(daysAtSeaF,na.rm=T))%>%
+	ungroup()
+tab3<-D3%>%
+	filter(year==currentyear)%>%
+	group_by(ecoregion,areaCode,metierL3,monitoringMethod,species,classname)%>%
+	summarise(nb=sum(individualsWithPingers,individualsWithoutPingers,na.rm=T),
+		  inc=sum(incidentsWithPingers,incidentsWithoutPingers,na.rm=T))%>%
+	ungroup()
+
+tab123<-full_join(full_join(tab2,tab1),tab3)%>%#filter(!is.na(species))%>%
+	transmute(ecoregion,areaCode,metierL3,dastot,monitoringMethod,dasobs,
+		  moncov=100*(dasobs/dastot),classname,species,nb,inc)%>%
+	mutate(dasobs=ifelse(dasobs==0,NA,dasobs))%>%
+	mutate(moncov=ifelse(dasobs==0,NA,moncov))%>%
+	transmute(Ecoregion=ecoregion,
+		  AreaCode=areaCode,
+		  MetierL3=metierL3,
+		  `Fishing Effort (das)`=dastot,
+		  MonitoringMethod=monitoringMethod,
+		  `Total Observed Effort (das)`=dasobs,
+		  `Monitoring Coverage (%)`=moncov,
+		  classname,Species=species,
+		  Total_No_Specimens=nb,
+		  Incidents=inc)
+
+#write excel file
+wb<-createWorkbook()
+addWorksheet(wb,1)
+writeData(wb,1,tab123)
+saveWorkbook(wb,file=here("outputs","TOR_A_long_table.xlsx"),overwrite=T)
+
+#short table
+tab2<-D2%>%
+	filter(year==currentyear)%>%
+	group_by(ecoregion,metierL3,monitoringMethod)%>%
+	summarise(dasobs=sum(daysAtSeaOb,na.rm=T))%>%
+	ungroup()
+tab1<-D1%>%
+	filter(year==currentyear)%>%
+	group_by(ecoregion,metierL3)%>%
+	summarise(dastot=sum(daysAtSeaF,na.rm=T))%>%
+	ungroup()
+tab3<-D3%>%
+	filter(year==currentyear)%>%
+	group_by(ecoregion,metierL3,monitoringMethod,species,classname)%>%
+	summarise(nb=sum(individualsWithPingers,individualsWithoutPingers,na.rm=T),
+		  inc=sum(incidentsWithPingers,incidentsWithoutPingers,na.rm=T))%>%
+	ungroup()
+
+tab123<-left_join(left_join(tab2,tab1),tab3)%>%filter(!is.na(species))%>%
+	transmute(ecoregion,metierL3,dastot,monitoringMethod,dasobs,
+		  moncov=100*(dasobs/dastot),classname,species,nb,inc)%>%
+	mutate(dasobs=ifelse(dasobs==0,NA,dasobs))%>%
+	mutate(moncov=ifelse(dasobs==0,NA,moncov))%>%
+	transmute(Ecoregion=ecoregion,
+		  MetierL3=metierL3,
+		  `Fishing Effort (das)`=dastot,
+		  MonitoringMethod=monitoringMethod,
+		  `Total Observed Effort (das)`=dasobs,
+		  `Monitoring Coverage (%)`=moncov,
+		  classname,Species=species,
+		  Total_No_Specimens=nb,
+		  Incidents=inc)
+
+#write excel file
+wb<-createWorkbook()
+addWorksheet(wb,1)
+writeData(wb,1,tab123)
+saveWorkbook(wb,file=here("outputs","TOR_A_short_table.xlsx"),overwrite=T)
+
+
+#shorter table
+tab2<-D2%>%
+	filter(year==currentyear)%>%
+	group_by(ecoregion)%>%
+	summarise(dasobs=sum(daysAtSeaOb,na.rm=T))%>%
+	ungroup()
+tab1<-D1%>%
+	filter(year==currentyear)%>%
+	group_by(ecoregion)%>%
+	summarise(dastot=sum(daysAtSeaF,na.rm=T))%>%
+	ungroup()
+tab3<-D3%>%
+	filter(year==currentyear)%>%
+	mutate(classname=ifelse(is.na(classname),"Reptiles",classname))%>%
+	group_by(Ecoregion=ecoregion,classname)%>%
+	summarise(nbspp=n_distinct(species),
+		  nb=sum(individualsWithPingers,individualsWithoutPingers,na.rm=T),
+		  inc=sum(incidentsWithPingers,incidentsWithoutPingers,na.rm=T))%>%
+	ungroup()%>%
+	tidyr::pivot_longer(nbspp:inc,names_to="variable")%>%
+	tidyr::pivot_wider(values_from=value,names_from=classname)
+tab3$variable[tab3$variable=="nbspp"]<-"Species"
+tab3$variable[tab3$variable=="nb"]<-"Individuals"
+tab3$variable[tab3$variable=="inc"]<-"Incidents"
+
+
+
+tab123<-left_join(tab1,tab2)%>%
+	filter(!is.na(ecoregion))%>%
+	transmute(Ecoregion=ecoregion,
+		  `Fishing Effort (das)`=dastot,
+		  `Total Observed Effort (das)`=dasobs,
+		  `Monitoring Coverage (%)`=100*(dasobs/dastot))%>%
+	left_join(tab3)%>%filter(Ecoregion!="")
+
+
+#write excel file
+wb<-createWorkbook()
+addWorksheet(wb,1)
+writeData(wb,1,tab123)
+saveWorkbook(wb,file=here("outputs","TOR_A_shorter_table.xlsx"),overwrite=T)
+
+pipo<-flextable(tab123)%>%
+	merge_v(j=~Ecoregion+`Fishing Effort (das)`+`Total Observed Effort (das)`+`Monitoring Coverage (%)`)%>%
+	hline(i=seq(3,nrow(tab123),3))%>%
+	valign(j=1:4,valign="top")%>%
+	colformat_double(j=4,digits=2)%>%
+	colformat_double(j=c(2:3,5:ncol(tab123)),digits=0)%>%
+	bg(part = "header", bg = "grey30") %>%
+  color(part = "header", color = "ghostwhite") %>%
+  italic(j = 1) %>% 
+  fit_to_width(max_width=11.7)
+pipo
+
+#save as docx object 
+save_as_docx(pipo,path=here("outputs","TOR_A_shorter_table.docx"),
+	     pr_section=prop_section(
+				page_size=page_size(orient="landscape"),
+				page_margins=page_mar(bottom=0,top=0,right=0,left=0,header=0,footer=0,gutter=0)
+				)
+		)
+
+
+
+
+#shorter table detailed effort
+tab2<-D2%>%
+	filter(year==currentyear)%>%
+	group_by(ecoregion,metierL3_name)%>%
+	summarise(dasobs=sum(daysAtSeaOb,na.rm=T))%>%
+	ungroup()
+tab1<-D1%>%
+	filter(year==currentyear)%>%
+	group_by(ecoregion,metierL3_name)%>%
+	summarise(dastot=sum(daysAtSeaF,na.rm=T))%>%
+	ungroup()
+tab12<-full_join(tab1,tab2)%>%
+	mutate(moncov=100*(dasobs/dastot))%>%
+	mutate(moncov=ifelse(is.finite(moncov),moncov,0))%>%
+	mutate(info=paste0(round(dastot,0)," das (",round(moncov,3),"% cov.)"))%>%
+	select(ecoregion,metierL3_name,info)
+tab3<-D3%>%
+	filter(year==currentyear)%>%
+	group_by(ecoregion,metierL3_name)%>%
+	summarise(inc=sum(incidentsWithPingers,incidentsWithoutPingers,na.rm=T))%>%
+	mutate(inc=ifelse(is.finite(inc),inc,0))%>%
+	ungroup()
+tab123<-full_join(tab12,tab3)%>%
+	mutate(inc=ifelse(is.finite(inc),inc,0))%>%
+	mutate(info=paste0(info," das/ ",inc," inc."))%>%
+	select(ecoregion,metierL3_name,info)%>%
+	pivot_wider(values_from=info,names_from=metierL3_name)%>%
+	filter(!is.na(ecoregion))
+
+
+flextable(tab123) %>%
+  autofit() %>%
+  set_table_properties(
+    opts_html = list(
+      scroll = list(
+        height = "400px",            # Limits height and enables vertical scroll
+        freeze_first_column = TRUE   # Keeps first column visible when scrolling right
+      )
+    )
+  )
+#write excel file
+wb<-createWorkbook()
+addWorksheet(wb,1)
+writeData(wb,1,tab123)
+saveWorkbook(wb,file=here("output","TOR_A_cool_effort_shorter_table.xlsx"),overwrite=T)
+
+
+```
+
+# Stuff 
+
+Text
+
+```{r anotherchunk,cache=TRUE,eval=T,echo=T,include=T}
+#code
+```
+
+
 
 # R session information
 
-```{r Rsession,cache=TRUE,eval=T,echo=T,cache=F,include=T}
+```{r Rsession,cache=TRUE,eval=T,echo=T,include=T}
 sessioninfo::session_info()
 ```
 
-# Bilbiography
+# Bibliography

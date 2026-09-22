@@ -3,7 +3,7 @@ D2.csv
 D3.csv
 D4.csv
 D5.csv
-DS_Store
+.DS_Store
 *.csv
 *.swp
 01_get_wgbyc_data.R
@@ -11,7 +11,7 @@ DS_Store
 !.gitignore
 
 # Data
- exclude everything
+#exclude everything
 data/**
 
 # exception to the rule to keep the data directory structure 
@@ -24,8 +24,13 @@ admin/**
 
 # admin
 # exclude everything
- doc/**
- !doc/README.md
+doc/**
+!doc/README.md
+
+# outputs 
+# exclude everything
+outputs/**
+!outputs/README.md
 
 #exclude secret file
 keyring.R

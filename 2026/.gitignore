@@ -1,0 +1,66 @@
+D1.csv
+D2.csv
+D3.csv
+D4.csv
+D5.csv
+.DS_Store
+*.csv
+*.swp
+01_get_wgbyc_data.R
+# never ignore a gitignore
+!.gitignore
+
+# Data
+#exclude everything
+data/**
+# exception to the rule to keep the data directory structure 
+!data/README.md
+
+# admin
+# exclude everything
+admin/**
+!admin/README.md
+
+# admin
+# exclude everything
+doc/**
+!doc/README.md
+
+# outputs 
+# exclude everything
+outputs/**
+!outputs/README.md
+
+#exclude secret file
+keyring.R
+
+# exclude html file
+*.html
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# vim stuff
+.swp
+*.swp
+
+# History files
+.Rhistory
+.Rapp.history
+
+# Session Data files
+.RData
+.RDataTmp
+
+# Cached files
+*_cache
+*_files
+cache
+
+# User-specific files
+.Ruserdata
+.Renviron
+
+# RStudio files
+.Rproj.user/

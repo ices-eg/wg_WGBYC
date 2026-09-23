@@ -59,7 +59,17 @@ require(icesConnect)
 library(officer)
 library(flextable)
 library(ggalluvial)
-
+library(httr)
+library(jsonlite)
+library(grid)
+library(glue)
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(lwgeom)
+library(viridis)
+library(ggforce)
+library(stringr)
+library(gridExtra)
 
 here::i_am("project.Rproj")
 ```
@@ -172,6 +182,7 @@ if (file.exists(here("data", "vocab", "BYC_Mon812Type.csv"))) {
             row.names = F
         )
     }
+    dir.create(here("data", "vocab"))
     lapply(listvocab, f1)
     #manual fix country name
     tmp <- fread(here("data", "vocab", paste0("ISO_3166", ".csv")))
@@ -457,11 +468,7 @@ monmethctry <- D2 %>%
 
 
 print(plt)
-textcaption <- "Total monitored (observed) days at sea reported in the WGBYC database and in the data filtered to compute BEAM estimatess per monitoring method (2017-2025) at-sea-observers,
-electronic monitoring, port observers, and vessel crew observers, logbooks, other. The BEAM 
-filtered for use in ToR C (see specific section, BEAM): at-sea-observ-
-ers, electronic monitoring, vessel crew observers except for Estonia, and
-other only for Norway."
+textcaption <- "Total monitored (observed) days at sea reported in the WGBYC database and in the data filtered to compute BEAM estimatess per monitoring method (2017-2025) at-sea-observers, electronic monitoring, port observers, and vessel crew observers, logbooks, other. The BEAM filtered for use in ToR C (see specific section, BEAM): at-sea-observers, electronic monitoring, vessel crew observers except for Estonia, and other only for Norway."
 print(textcaption)
 filename <- here("outputs", "monitoring_method_overview.png")
 png(filename, res = 300, width = 18, height = 18, unit = "cm")
@@ -479,6 +486,10 @@ read_docx() |>
     body_add_par(value = textcaption, style = "centered") |>
     print(target = sub(".png", ".docx", filename))
 
+```
+# Monitoring methods overview by country
+
+```{r monitoringoverviewdas_by_country, cache=TRUE,eval=T,echo=T,include=T}
 #by country
 plt <- ggplot(
     monmethctry,
@@ -500,16 +511,29 @@ plt <- ggplot(
     ylab("Proportion of annual DAS by monitoring method (%)")
 #keep 1.8 fix country
 print(plt)
-png(
-    here("outputs", "monitoring_method_country.png"),
-    res = 300,
-    width = 1600,
-    height = 1200,
-    unit = "px"
-)
+textcaption <- "test"
+print(textcaption)
+filename <- here("outputs", "monitoring_method_country.png")
+png(filename, res = 300, width = 18, height = 16, unit = "cm")
 print(plt)
 dev.off()
+#save as docx object
+read_docx() |>
+    body_add_img(
+        src = filename,
+        height = 16,
+        width = 18,
+        unit = "cm",
+        style = "centered"
+    ) |>
+    body_add_par(value = textcaption, style = "centered") |>
+    print(target = sub(".png", ".docx", filename))
+```
 
+# Monitoring program overview by country
+
+
+```{r monitoringoverviewdas_by_country_program ,cache=TRUE,eval=T,echo=T,include=T}
 #moniroting by program
 monitoringProgramType_namectry <- D2 %>%
     group_by(monitoringProgramType_name, country_name, year) %>%
@@ -537,22 +561,32 @@ plt <- ggplot(
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
     labs(fill = "Monitoring program") +
     ylab("Proportion of annual DAS by monitoring program (%)")
-
+textcaption <- "Total monitored (observed) days at sea reported by each country for each monitoring program (2017-2025)"
+print(textcaption)
+filename <- here("outputs", "monitoring_program_country.png")
 #keep 1.9
 print(plt)
-png(
-    here("outputs", "monitoring_program_country.png"),
-    res = 300,
-    width = 1600,
-    height = 1200,
-    unit = "px"
-)
+png(filename, res = 300, width = 21, height = 16, unit = "cm")
 print(plt)
 dev.off()
+#save as docx object
+read_docx() |>
+    body_add_img(
+        src = filename,
+        height = 16,
+        width = 21,
+        unit = "cm",
+        style = "centered"
+    ) |>
+    body_add_par(value = textcaption, style = "centered", ) |>
+    print(target = sub(".png", ".docx", filename))
 
-#
-# incidents by montoring program and species class
-#
+```
+# Incident by monitoring program
+
+
+```{r incidents_by_monitoringProgram ,cache=TRUE,eval=T,echo=T,include=T}
+
 pipo <- D3
 pipo$nbinc <- apply(
     D3 %>% select(incidentsWithPingers, incidentsWithoutPingers),
@@ -594,11 +628,13 @@ plt <- ggplot(
     labs(fill = "Monitoring method") +
     ylab("Number of reported incidents") +
     xlab("")
-
+textcaption <- "Total number of bycatch incidents for each taxa (birds, elasmobranchs, mammals, other fish species, and rep-tiles) reported by each monitoring method (2017-2025): at-sea-observers, electronic monitoring, port observers, and vessel crew observers, logbooks, other."
+print(textcaption)
+filename <- here("outputs", "incidents_by_monitoringProgram.png")
 #keep 1.10 keep
 print(plt)
 png(
-    here("outputs", "incidents_by_monitoringProgram.png"),
+  filename,
     res = 300,
     width = 1600,
     height = 1200,
@@ -606,8 +642,25 @@ png(
 )
 print(plt)
 dev.off()
+#save as docx object
+read_docx() |>
+    body_add_img(
+        src = filename,
+        height = 12,
+        width = 15,
+        unit = "cm",
+        style = "centered"
+    ) |>
+    body_add_par(value = textcaption, style = "centered") |>
+    print(target = sub(".png", ".docx", filename))
+
+```
 
 
+# Monitoring methods overview by Ecoregion
+
+
+```{r monitoring_method_ecoregion ,cache=TRUE,eval=T,echo=T,include=T}
 #prepare data for sample coverage by monitoring effort by gear by georegions
 monmethgear <- D2 %>%
     group_by(monitoringMethod_name, ecoregion, metierL3_name, year) %>%
@@ -681,11 +734,24 @@ plt <- ggplot(
     labs(fill = "Monitoring method") +
     ggtitle("Monitoring program by ecoregion") +
     ylab("Sum of annual DAS by monitoring method")
+textcaption <- "test"
+print(textcaption)
 filename <- here("outputs", "monitoring_method_ecoregion.png")
 print(plt)
-png(filename, res = 300, width = 1600, height = 1200, unit = "px")
+png(filename, res = 300, width = 18, height = 14, unit = "cm")
 print(plt)
 dev.off()
+#save as docx object
+read_docx() |>
+    body_add_img(
+        src = filename,
+        height = 14,
+        width = 16,
+        unit = "cm",
+        style = "centered"
+    ) |>
+    body_add_par(value = textcaption, style = "centered") |>
+    print(target = sub(".png", ".docx", filename))
 ```
 
 
@@ -730,11 +796,27 @@ plt <- ggplot(
     labs(fill = "Monitoring method") +
     ylab("Proportion of annual trips by monitoring method (%)")
 print(plt)
+textcaption <- ""
+print(textcaption)
 filename <- here("outputs", "monitoring_method_overview_trips.png")
 png(filename, res = 300, width = 1600, height = 1200, unit = "px")
 print(plt)
 dev.off()
+#save as docx object
+read_docx() |>
+    body_add_img(
+        src = filename,
+        width = 16, height = 12, unit = "cm",
+        style = "centered"
+    ) |>
+    body_add_par(value = textcaption, style = "centered") |>
+    print(target = sub(".png", ".docx", filename))
+```
 
+
+# Monitoring methods overview trips and country
+
+```{r monitoringoverviewtrips_country,cache=TRUE,eval=T,echo=T,include=T}
 #clean
 plt <- ggplot(
     monmethctry,
@@ -755,10 +837,29 @@ plt <- ggplot(
     labs(fill = "Monitoring method") +
     ylab("Proportion of annual trips by monitoring method (%)")
 print(plt)
+textcaption <- "Total monitored (observed) days at sea reported by each country for each monitoring method (2017-2025); at-sea-observers, electronic monitoring, port observers, vessel crew observers, logbooks, other."
+print(textcaption)
 filename <- here("outputs", "monitoring_method_country_trips.png")
-png(filename, res = 300, width = 1600, height = 1200, unit = "px")
+png(filename, res = 300, width = 30, height = 20, unit = "cm")
 print(plt)
 dev.off()
+#save as docx object
+read_docx() |>
+    body_add_img(
+        src = filename,
+        width = 10, height = 8, unit = "cm",
+        style = "centered"
+    ) |>
+    body_add_par(value = textcaption, style = "centered") |>
+    print(target = sub(".png", ".docx", filename))
+
+```
+
+
+# Monitoring program overview trips and country
+
+
+```{r monitoring_program_overviewtrips_country_trip,cache=TRUE,eval=T,echo=T,include=T}
 
 #moniroting by program
 monprogctry <- D2 %>%
@@ -787,13 +888,27 @@ plt <- ggplot(
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
     labs(fill = "Monitoring program") +
     ylab("Proportion of annual trips by monitoring program (%)")
-
 print(plt)
 filename <- here("outputs", "monitoring_program_country_trips.png")
-png(filename, res = 300, width = 1600, height = 1200, unit = "px")
+textcaption <- "test"
+print(textcaption)
+png(filename, res = 300, width = 30, height = 20, unit = "cm")
 print(plt)
 dev.off()
+#save as docx object
+read_docx() |>
+    body_add_img(
+        src = filename,
+        width = 12, height = 10, unit = "cm",
+        style = "centered"
+    ) |>
+    body_add_par(value = textcaption, style = "centered") |>
+    print(target = sub(".png", ".docx", filename))
 
+```
+
+
+```{r monitoring_method_ecoregion_trips, cache=TRUE, eval=T, echo=T, include=T}
 #prepare data for sample coverage by monitoring effort by gear by georegions
 monmethgear <- D2 %>%
     group_by(monitoringMethod_name, ecoregion, metierL3_name, year) %>%
@@ -871,16 +986,153 @@ plt <- ggplot(
     ggtitle(i) +
     ylab("Sum of annual trips by monitoring method")
 print(plt)
+textcaption <- "test"
+print(textcaption)
 filename <- here("outputs", "monitoring_method_ecoregion_trips.png")
-png(filename, res = 300, width = 1600, height = 1200, unit = "px")
+png(filename, res = 300, width = 30, height = 20, unit = "cm")
 print(plt)
 dev.off()
+#save as docx object
+read_docx() |>
+    body_add_img(
+        src = filename,
+        width = 12, height = 10, unit = "cm",
+        style = "centered"
+    ) |>
+    body_add_par(value = textcaption, style = "centered") |>
+    print(target = sub(".png", ".docx", filename))
 ```
 
 # EM figures 
 
+```{r, em_total_das, cache=TRUE, eval=T, echo=T, include=T}
+#Use only Electronic Monitoring
+EM_monitoringeffort <- D2 %>%
+  filter(monitoringMethod == "EM")
+## Pivot the info
+EM_Grouped <- EM_monitoringeffort %>%
+  group_by(year, country) %>%
+  summarize(total_tripsOb = sum(tripsOb, na.rm = TRUE),
+            total_daysAtSeaOb = sum(daysAtSeaOb, na.rm = TRUE))
 
-```{r EMfig,cache=TRUE,eval=T,echo=T,include=T}
+## 4.4 PLOT EM total trips observed =======
+plt_A <- ggplot(EM_Grouped, aes(x = year, y = total_daysAtSeaOb, fill = country)) +
+  geom_bar(stat = "identity", position = "stack", colour = "black") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
+  scale_x_continuous(breaks = unique(EM_Grouped$year)) +
+  labs(fill = "Country") +
+  xlab('') +
+  ylab("Total DAS observed using EM")
+print(plt_A)
+textcaption <- "Total monitored (observed) number of days at sea reported by each country with electronic monitoring."
+print(textcaption)
+filename <- here("outputs", "em_total_das.png")
+png(filename, res = 300, width = 30, height = 20, unit = "cm")
+print(plt_A)
+dev.off()
+read_docx() |>
+    body_add_img(
+        src = filename,
+        width = 8, height = 10, unit = "cm",
+        style = "centered"
+    ) |>
+    body_add_par(value = textcaption, style = "centered") |>
+    print(target = sub(".png", ".docx", filename))
+
+plt_B <- ggplot(EM_Grouped, aes(x = year, y = total_tripsOb, fill = country)) +
+  geom_bar(stat = "identity", position = "stack", colour = "black") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
+  scale_x_continuous(breaks = unique(EM_Grouped$year)) +
+  labs(fill = "Country") +
+  xlab('') +
+  ylab("Total trips observed using EM")
+print(plt_B)
+textcaption <- "Total monitored (observed) number of trip reported by each country with electronic monitoring."
+print(textcaption)
+filename <- here("outputs", "em_total_das_trip.png")
+png(filename, res = 300, width = 30, height = 20, unit = "cm")
+print(plt_B)
+dev.off()
+read_docx() |>
+    body_add_img(
+        src = filename,
+        width = 8, height = 10, unit = "cm",
+        style = "centered"
+    ) |>
+    body_add_par(value = textcaption, style = "centered") |>
+    print(target = sub(".png", ".docx", filename))
+
+AB <- plot_grid(A + theme(legend.position = "none"),
+                B + theme(legend.position = "right"),
+                rel_widths = c(1,1.2), 
+                nrow = 1)
+textcaption <- "Total monitored (observed) number of trip reported by each country with electronic monitoring."
+print(textcaption)
+filename <- here("outputs", "em_total_das_and_trip.png")
+png(filename, res = 300, width = 30, height = 20, unit = "cm")
+print(AB)
+dev.off()
+read_docx() |>
+    body_add_img(
+        src = filename,
+        width = 12, height = 10, unit = "cm",
+        style = "centered"
+    ) |>
+    body_add_par(value = textcaption, style = "centered") |>
+    print(target = sub(".png", ".docx", filename))
+
+```
+```{r, em_plt_incident, cache=TRUE, eval=T, echo=T, include=T}
+EM_taxa_bycatch <- D3 %>%
+  filter(monitoringMethod == "EM")
+
+# Drop na values and drop teleostei (Because only 3 incidents! Check this later if needed!)
+EM_taxa_bycatch <- EM_taxa_bycatch %>%
+  filter(!is.na(classname) & classname != "Teleostei") %>% 
+  filter(!classname == "Chondrostei")
+
+## Pivot the info
+EM_Taxa_Grouped <- EM_taxa_bycatch %>%
+  group_by(year, country, classname) %>%
+  summarize(
+    sum_incidents = sum(incidentsWithPingers, na.rm = TRUE) + sum(incidentsWithoutPingers, na.rm = TRUE),
+    sum_individuals = sum(individualsWithPingers, na.rm = TRUE) + sum(individualsWithoutPingers, na.rm = TRUE)
+  )
+
+
+#Plot incidents per taxa
+plt <- ggplot(EM_Taxa_Grouped, aes(x = year, y = sum_incidents, fill = country)) +
+  geom_bar(stat = "identity", position = "stack", colour = "black") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
+  scale_x_continuous(breaks = unique(EM_Taxa_Grouped$year)) +
+  labs(fill = "Country") +
+  ylab("Total number of incidents") +
+  xlab('') +
+  facet_wrap(~classname, scales = "free", nrow = 1)
+
+textcaption <- "Total number of bycatch incidents reported by each country through the WGBYC data calls, observed with electronic monitoring. Sweden did not report elasmobranch bycatch with EM in 2022-2025 due to difficulties in taxo-nomic identification. France did not report bycatch of seabirds and elasmobranchs with EM because data collection is not authorized for these taxa unless specified by the crew. Spain has ongoing EM research programs but did not submit EM data through the WGBYC data calls. "
+print(textcaption)
+filename <- here("outputs", "em_plt_incidents.png")
+png(filename, res = 300, width = 30, height = 20, unit = "cm")
+print(plt)
+dev.off()
+read_docx() |>
+    body_add_img(
+        src = filename,
+        width = 12, height = 10, unit = "cm",
+        style = "centered"
+    ) |>
+    body_add_par(value = textcaption, style = "centered") |>
+    print(target = sub(".png", ".docx", filename))
+
+
+```
+
+
+```{r EMfig_country,cache=TRUE,eval=T,echo=T,include=T}
 
 #### calculate percentages for text ####
 
@@ -974,10 +1226,26 @@ plt <- ggplot(EM_Taxa_Grouped, aes(x = year, y = sum_individuals, fill = country
     scale_x_continuous(limits = c(2018.5, max(EM_Taxa_Grouped$year + 0.5))) #this is just to make all x-axes the same
 
 print(plt)
+textcaption <- "test"
+print(textcaption)
 filename <- here("outputs", "EM_individuals_country.png")
 png(filename, res = 300, width = 1600, height = 1200, unit = "px")
 print(plt)
 dev.off()
+#save as docx object
+read_docx() |>
+    body_add_img(
+        src = filename,
+        width = 12, height = 10, unit = "cm",
+        style = "centered"
+    ) |>
+    body_add_par(value = textcaption, style = "centered") |>
+    print(target = sub(".png", ".docx", filename))
+
+```
+
+
+```{r EMfig_incident_country,cache=TRUE,eval=T,echo=T,include=T}
 
 #Plot incidents per taxa
 plt <- ggplot(EM_Taxa_Grouped, aes(x = year, y = sum_incidents, fill = country_name)) +
@@ -989,12 +1257,23 @@ plt <- ggplot(EM_Taxa_Grouped, aes(x = year, y = sum_incidents, fill = country_n
     facet_wrap(~classname, scales = "free") +
     scale_x_continuous(limits = c(2018.5, max(EM_Taxa_Grouped$year + 0.5))) #this is just to make all x-axes the same
 plot(plt)
-
 print(plt)
+textcaption <- "test"
+print(textcaption)
 filename <- here("outputs", "EM_incidents_country.png")
 png(filename, res = 300, width = 1600, height = 1200, unit = "px")
 print(plt)
 dev.off()
+#save as docx object
+read_docx() |>
+    body_add_img(
+        src = filename,
+        width = 12, height = 10, unit = "cm",
+        style = "centered"
+    ) |>
+    body_add_par(value = textcaption, style = "centered") |>
+    print(target = sub(".png", ".docx", filename))
+
 ```
 
 # Long tables production 
@@ -1312,6 +1591,622 @@ saveWorkbook(
     file = here("output", "TOR_A_cool_effort_shorter_table.xlsx"),
     overwrite = T
 )
+```
+
+# Effort Monitoring
+
+## Select parameters
+
+```{r affort_monitoring_parameters, cache=TRUE, eval=T, echo=T, include=T}
+
+# Select year
+analysis_year = 2025
+
+# Rename vector
+rename_vector <- c(
+  # L4 level
+  "DRB" = "DRB - Boat dredge", "FPN" = "FPN - Stationary uncovered pound nets", "FPO" = "FPO - Pots and traps",
+  "FWR" = "FWR - Fixed installations for fences and weirs", "FYK" = "FYK - Fyke nets", "GEL" = "GEL - Glass eel fishing",
+  "GN" = "GN - Gill nets", "GNC" = "GNC - Encircling gillnets", "GND" = "GND - Driftnet", "GNS" = "GNS - Set gillnet",
+  "GTN" = "GTN - Gillnets-trammel nets", "GTR" = "GTR - Trammel nets", "HMD" = "HMD - Mechanised/suction dredge",
+  "LA" = "LA - Lampara nets", "LH" = "LH - Hand and pole lines", "LHM" = "LHM - Hand and pole lines",
+  "LHP" = "LHP - Hand and pole lines (hand-operated)", "LLD" = "LLD - Drifting longlines", "LLS" = "LLS - Set longlines",
+  "LTL" = "LTL - Trolling lines", "LX" = "LX - Hooks and lines", "MIS" = "MIS - Gear nei.", "OTB" = "OTB - Bottom otter trawl",
+  "OTM" = "OTM - Midwater otter trawl", "OTT" = "OTT - Milti-rig otter trawl", "PS" = "PS - Purse seine",
+  "PTB" = "PTB - Bottom pair trawl", "PTM" = "PTM - Pelagic pair trawl", "SB" = "SB - Beach Seine",
+  "SBV" = "SBV - Beach and boat seine", "SDN" = "SDN - Anchored seine", "SPR" = "SPR - Pair seine",
+  "SSC" = "SSC - Fly shooting seine", "TBB" = "TBB - Beam trawl",
+  # L3 level
+  "L3DR" = "DR - Dredges", "L3FIX" = "Fix - Traps", "L3GN" = "GN - Nets",
+  "L3LH" = "LH - Rods and Lines", "L3LL" = "LL - Longlines", "L3PS" = "PS - Surrounding Nets",
+  "L3PT" = "PT - Pelagic Trawls", "L3SX" = "SX - Seines", "L3TB" = "TB - Bottom Trawls"
+)
+
+# Do we include NAFO or not
+include_NAFO_areas <- FALSE
+
+## Prepare Map
+world <- rnaturalearth::ne_countries(scale = "medium", returnclass = "sf") %>% st_make_valid() %>% st_transform(crs = 3035)
+
+# ICES area and GFCM  
+# The shape file come from Laurent Dubroca, we need to found a wya to source it correctly
+ices_gfcm <- readRDS(here("data","vocab", "allgeo.rds"))
+
+# NAFO  
+if(include_NAFO_areas){
+  NAFOareas <- st_read("../../ICES_areas_map/NAFO_Divisions.shp") %>% st_transform(crs = st_crs(ices_gfcm))
+  combined_areas <- bind_rows(combined_areas, NAFOareas %>% select(geometry, icesdiv = Label) %>% mutate(Area_Full = paste0("21.", str_replace(as.character(Label), "([0-9])([A-Z])", "\\1.\\2"))))
+} else {
+  combined_areas <- ices_gfcm
+}
+
+# ransform shapefile =====
+ICESareas_laea <- st_transform(combined_areas, crs = 3035)
+
+```
+
+
+## Data processing
+
+```{r effort_monitoring_prepare_data,cache=TRUE,eval=T,echo=T,include=T}
+# 3. Data processing D1 =====================================================================
+
+## 3.1 Data D1 =============================
+D1_data <- D1 %>% 
+  filter(!areaCode %in% c("27.1", "27.6", "27.1~27.2.a~27.2.b", "21.1")) %>%
+  mutate(areaCode = recode(areaCode, "27.3.a" = "27.3.a.20", "27.5.a" = "27.5.a.2", "27.3.d.28" = "27.3.d.28.2", "11.1" = "111", "11.2" = "112", "21.3.l" = "21.3.L", "21.3.m" = "21.3.M", "21.3.n" = "21.3.N", "21.3.k" = "21.3.K", "21.3.o" = "21.3.O", "21.4.V.s" = "21.4.Vs"))
+if (include_NAFO_areas) {
+  D1_data <- D1_data %>% filter(areaType != "NAFOArea")
+}
+
+
+## 3.2 function to process data ==========================================
+process_data <- function(data, group_var, rename_vector) {
+  data %>% filter(year == analysis_year) %>%
+    group_by(!!sym(group_var), areaCode) %>% 
+    summarize(total_daysAtSeaF = sum(daysAtSeaF, na.rm = TRUE)) %>% 
+    left_join(ICESareas_laea, by = c("areaCode" = "offname")) %>%
+    mutate(daysAtSeaF_cat = cut(total_daysAtSeaF, 
+                                breaks = c(-Inf, 100, 1000, 2000, 5000, 10000, 25000, Inf), 
+                                labels = c("< 100", "100-1000", "1000-2000", "2000-5000", "5000-10000", "10000-25000", "> 25000")),
+           !!sym(group_var) := recode(!!sym(group_var), !!!rename_vector)) %>%
+    filter(!is.na(daysAtSeaF_cat) & !!sym(group_var) != "L3NK")
+}
+
+
+## 3.3 process L3 and L4 data ==========================================
+daysAtSea_spatial <- process_data(D1_data, "metierL3", rename_vector)
+daysAtSea_L4_spatial <- process_data(D1_data, "metierL4", rename_vector)
+
+hist(daysAtSea_spatial$total_daysAtSeaF, breaks = seq(from = 0, to = 1000000, by = 100), xlim = c(0, 10000))
+hist(daysAtSea_L4_spatial$total_daysAtSeaF, breaks = seq(from = 0, to = 1000000, by = 100), xlim = c(0, 10000))
+
+
+# 3. Data processing D2 =====================================================================
+
+## 3.1 Data D2 ==================
+D2_data <- D2 %>% filter(!areaCode %in% c("27.1", "27.6", "27.1~27.2.a~27.2.b", "21.1")) %>%
+  mutate(areaCode = recode(areaCode, "27.3.a" = "27.3.a.20", "27.5.a" = "27.5.a.2", "27.3.d.28" = "27.3.d.28.2", "11.1" = "111", "11.2" = "112", "21.3.l" = "21.3.L", "21.3.m" = "21.3.M", "21.3.n" = "21.3.N", "21.3.k" = "21.3.K", "21.3.o" = "21.3.O", "21.4.V.s" = "21.4.Vs"))
+
+## exclude all log books (LB), port observers (PO), and all log books (except for Norway)
+indRef <- which(D2_data$monitoringMethod == 'SO' | #all observer data
+                  D2_data$monitoringMethod == 'VO' & D2_data$country != 'EE' | #include vessel crew except Estonia
+                  D2_data$monitoringMethod == 'EM' | #all electronic monitoring data
+                  D2_data$monitoringMethod == 'OTH' & D2_data$country == 'NO') #include other only for Norway
+
+D2_data <- D2_data[indRef, ]
+rm(indRef)
+
+## 3.2 Filtert Data
+daysAtSea_Ob <- D2_data %>% filter(year == analysis_year) %>%
+  group_by(metierL3, areaCode) %>%
+  summarize(daysAtSea_Ob = sum(daysAtSeaOb, na.rm = TRUE)) %>%
+  left_join(ICESareas_laea, by = c("areaCode" = "offname")) 
+
+
+## 3.2 assign breaks for plotting and sort data accordingly ====
+daysAtSea_Ob <- daysAtSea_Ob %>% mutate(daysAtSea_Ob_cat = cut(daysAtSea_Ob, 
+                                                               breaks = c(-Inf, 5, 10, 20, 50, 100, 500, Inf), 
+                                                               labels = c("<5", "5-10", "10-20", "20-50", "50-100", "100-500", ">500")),
+                                        metierL3 = recode(metierL3, !!!rename_vector)) %>%
+  filter(!is.na(daysAtSea_Ob_cat) & metierL3 != "L3NK")
+
+
+## 3.3 monitoring effort Metier L4 ==============
+daysAtSea_L4_Ob <- D2_data %>% filter(year == analysis_year) %>%
+  group_by(metierL4, areaCode) %>%
+  summarize(daysAtSea_Ob = sum(daysAtSeaOb, na.rm = TRUE)) %>%
+  left_join(ICESareas_laea, by = c("areaCode" = "offname")) %>%
+  mutate(daysAtSea_L4_Ob_cat = cut(daysAtSea_Ob, 
+                                   breaks = c(-Inf, 5, 10, 20, 50, 100, 500, Inf), 
+                                   labels = c("<5", "5-10", "10-20", "20-50", "50-100", "100-500", ">500")),
+         metierL4 = recode(metierL4, !!!rename_vector)) %>%
+  filter(!is.na(daysAtSea_L4_Ob_cat) & metierL4 != "L4NK")
+
+
+
+## 3.4 observer coverage L3 =========================
+matchedDaysAtSea <- full_join(daysAtSea_spatial, daysAtSea_Ob, by = c("areaCode", "metierL3"))
+hist((matchedDaysAtSea$daysAtSea_Ob/matchedDaysAtSea$total_daysAtSeaF)*100, breaks = seq(from = 0, to = 100, by = 0.1), xlim = c(0, 2))
+
+spatialCoverage <- left_join(ICESareas_laea, matchedDaysAtSea, by = c("offname" = "areaCode")) %>%
+  mutate(Obs_Coverage = (daysAtSea_Ob / total_daysAtSeaF)*100,
+         Obs_Coverage_cat = cut(Obs_Coverage, 
+                                breaks = c(-Inf, 0.25, 0.5, 0.75, 1, 2, 4, Inf),
+                                labels = c("< 0.25", "0.25-0.5",  "0.5-0.75", "0.75-1.0", "1.0-2.0", "2.0-4.0", "> 4.0"))) %>%
+  filter(!is.na(Obs_Coverage_cat) & metierL3 != "L3NK") %>%
+  mutate(metierL3 = recode(metierL3, !!!rename_vector))
+
+
+
+## 3.5 Observer coverage L4 ==================================
+matchedDaysAtSea_L4 <- full_join(daysAtSea_L4_spatial, daysAtSea_L4_Ob, by = c("areaCode", "metierL4"))
+spatialCoverage_L4 <- left_join(ICESareas_laea, matchedDaysAtSea_L4, by = c("offname" = "areaCode")) %>%
+  mutate(Obs_Coverage = (daysAtSea_Ob / total_daysAtSeaF)*100,
+         Obs_Coverage_cat = cut(Obs_Coverage, 
+                                breaks = c(-Inf, 0.1, 0.25, 0.5, 0.75, 1, 2, Inf),
+                                labels = c("< 0.1", "0.1-0.25", "0.25-0.5",  "0.5-0.75", "0.75-1.0", "1.0-2.0", "> 2.0"))) %>%
+  filter(!is.na(Obs_Coverage_cat) & metierL4 != "L4NK") %>%
+  mutate(metierL4 = recode(metierL4, !!!rename_vector))
+
+```
+
+## Plot the map
+
+```{r effort_monitoring_plot_map,cache=TRUE,eval=T,echo=T,include=T}
+
+## color palette options to avoid a highly controversial continuous log scale
+c("#FFCCCC", "#FF9999", "#FF6666", "#FF3333", "#FF0000", "#CC0000") # old and ugly
+
+c("#440154FF", "#46337EFF", "#365C8DFF", "#277F8EFF", "#1FA187FF", "#4AC16DFF", "#9FDA3AFF", "#FDE725FF") # 8 levels
+
+c("#440154FF", "#443A83FF", "#31688EFF", "#21908CFF", "#35B779FF", "#8FD744FF", "#FDE725FF") # 7 levels
+
+c("#440154FF", "#414487FF", "#2A788EFF", "#22A884FF", "#7AD151FF", "#FDE725FF") # 6 levels
+
+## define color palette for plot with shades of red
+ownPalette <- list(
+  fishingEffort = c("< 100" = "#440154FF", "100-1000" = "#443A83FF", "1000-2000" = "#31688EFF", 
+                    "2000-5000" = "#21908CFF", "5000-10000" = "#35B779FF", "10000-25000" = "#8FD744FF", "> 25000" = "#FDE725FF"),
+  observer = c("<5" = "#440154FF", "5-10" = "#443A83FF", "10-20" = "#31688EFF", 
+               "20-50" = "#21908CFF", "50-100" = "#35B779FF", "100-500" = "#8FD744FF", ">500" = "#FDE725FF"),
+  observerPerc = c("< 0.25" = "#440154FF", "0.25-0.5" = "#443A83FF", "0.5-0.75" = "#31688EFF",  
+                   "0.75-1.0" = "#21908CFF", "1.0-2.0" = "#35B779FF", "2.0-4.0" = "#8FD744FF", "> 4.0" = "#FDE725FF")
+)
+
+
+
+# Function to create plots =================
+create_plot <- function(data = XXXX, 
+                        fill_var = "xxxx", 
+                        plotTitle = 'xxxx', 
+                        paletteBreaksColours = ownPalette$xxxx, 
+                        paletteTitle = 'xxxx', 
+                        facet_var = "xxxx", facet_ncol = 3, facet_nrow = 3){
+  total_pages <- ceiling(length(unique(data[[facet_var]])) / (facet_ncol * facet_nrow))
+  for (page in 1:total_pages) {
+    plot <- ggplot(data = data) +
+      geom_sf(data = ICESareas_laea, fill = "white", color = "lightgray") +
+      geom_sf(data = world, fill = "lightgray", color= "darkgrey", size=0.1) +
+      geom_sf(aes_string(geometry = "geometry", fill = fill_var), color = "darkgrey") +
+      # scale_fill_viridis(name = paletteBreaksTitle, direction = 1, option = "D", 
+      #                     trans = "pseudo_log", breaks = paletteBreaks,
+      #                    labels = c(paletteBreakLabels),
+      #                    na.value = "white",
+      #                     discrete = FALSE,
+      #                    guide = guide_colourbar(title.position = "top", barwidth = 18, barheight = 1)) +      
+      scale_fill_manual(name = paletteTitle, values = paletteBreaksColours, na.value = "white",
+                        guide = guide_legend(title.position="top", label.position = "bottom", nrow = 1, byrow = TRUE)) +
+      coord_sf(crs = st_crs(3035), xlim = c(-40000, 6800000), ylim = c(1100000, 7000000)) +
+      theme_minimal() +
+      labs(title = plotTitle) +
+      facet_wrap_paginate(as.formula(paste("~", facet_var)), ncol = facet_ncol, nrow = facet_nrow, page = page, drop = TRUE) +
+      theme(strip.text = element_text(size = 6),
+            panel.grid.major = element_blank(),
+            panel.grid.minor = element_blank(),
+            axis.text = element_blank(),
+            axis.ticks = element_blank(),
+            axis.title = element_blank(),
+            legend.position = "bottom",
+            legend.text = element_text(size = 8, angle = -67, vjust = 0.33, hjust = 0),
+            legend.title = element_text(size = 10),
+            panel.background = element_blank(),
+            plot.background = element_blank())
+    return(plot)
+  }
+}
+
+
+
+## 4.3 Plots for Metier Level 3 ===================
+
+## days at sea
+plt <- create_plot(data = daysAtSea_spatial, fill_var = "daysAtSeaF_cat", 
+            plotTitle = 'Fishing effort',  
+            paletteBreaksColours = ownPalette$fishingEffort,  paletteTitle = 'Fishing effort (days at sea)', 
+            facet_var = "metierL3", facet_ncol = 3, facet_nrow = 3) 
+print(plt)
+textcaption <- "Metier level 3 fishing effort for 2025 (days at sea) submitted to the WGBYC database for monitoring methods retained for use under ToR C for the calculation of bycatch estimates for 2024. This includes all scientific observer data, all electronic mon-itoring data, and all vessel crew data (except for Estonia) but excludes reports from logbooks and port observers. Transparent = no data or zero."
+print(textcaption)
+filename <- here("outputs", "fishingEffort_L3.png")
+png(filename, res = 300, width = 30, height = 20, unit = "cm")
+print(plt)
+dev.off()
+read_docx() |>
+    body_add_img(
+        src = filename,
+        width = 18, height = 14, unit = "cm",
+        style = "centered"
+    ) |>
+    body_add_par(value = textcaption, style = "centered") |>
+    print(target = sub(".png", ".docx", filename))
+
+
+
+
+## monitoring effort days at sea
+plt <- create_plot(data = daysAtSea_Ob, fill_var = "daysAtSea_Ob_cat", 
+            plotTitle = 'Monitoring effort', 
+            paletteBreaksColours = ownPalette$observer,  paletteTitle = 'Monitoring effort (days at sea)', 
+            facet_var = "metierL3", facet_ncol = 3, facet_nrow = 3) 
+print(plt)
+textcaption <- "Metier level 3 monitoring effort for 2025 (days at sea) submitted to the WGBYC database for monitoring methods retained for use under ToR C for the calculation of bycatch estimates for 2024. This includes all scientific observer data, all elec-tronic monitoring data, and all vessel crew data (except for Estonia) but excludes reports from logbooks and port observers. Transparent = no data or zero."
+print(textcaption)
+filename <- here("outputs", "monitoringEffort_L3.png")
+png(filename, res = 300, width = 30, height = 20, unit = "cm")
+print(plt)
+dev.off()
+read_docx() |>
+    body_add_img(
+        src = filename,
+        width = 18, height = 14, unit = "cm",
+        style = "centered"
+    ) |>
+    body_add_par(value = textcaption, style = "centered") |>
+    print(target = sub(".png", ".docx", filename))
+
+
+
+## monitoring coverage (%)
+plt <- create_plot(data = spatialCoverage, fill_var = "Obs_Coverage_cat", 
+            plotTitle = 'Monitoring coverage',  
+            paletteBreaksColours = ownPalette$observerPerc,  paletteTitle = 'Monitoring coverage (%)', 
+            facet_var = "metierL3", facet_ncol = 3, facet_nrow = 3) 
+print(plt)
+textcaption <- "Metier level 3 monitoring coverage of 2025 data submitted to the WGBYC database for monitoring methods retained for use under ToR C for the calculation of bycatch estimates for 2024. This includes all scientific observer data, all electronic mon-itoring data, and all vessel crew data (except for Estonia) but excludes reports from logbooks and port observers. Transparent = no data or zero. Coverage calculated as monitoring effort as a percentage of fishing effort (using numbers presented in Figures X3 & X4 above). Transparent = no data or zero."
+print(textcaption)
+filename <- here("outputs", "monitoringCoverage_L3.png")
+png(filename, res = 300, width = 30, height = 20, unit = "cm")
+print(plt)
+dev.off()
+read_docx() |>
+    body_add_img(
+        src = filename,
+        width = 18, height = 14, unit = "cm",
+        style = "centered"
+    ) |>
+    body_add_par(value = textcaption, style = "centered") |>
+    print(target = sub(".png", ".docx", filename))
+
+```
+
+
+# Bycatch reporting 
+
+## Prepare data
+
+```{r bycatch_reporting_preparation, cache=TRUE,eval=T,echo=T,include=T}
+# Select parameters =======================================
+
+ecoregions_unique <- unique(D3$ecoregion)
+years_unique <- c(2017:2025)
+
+# Clean D3 ===============================================
+
+D3 <- D3 %>% mutate(classname = case_when(superClass == "Reptilia" & is.na(D3$classname) ~ 'Reptilia', .default = classname))
+
+# Create a summary data empty ==============================
+summaryData <- expand.grid(years_unique, ecoregions_unique) %>% 
+  rename(year = Var1, ecoregion = Var2) %>% 
+  data.frame() %>% 
+  mutate(Aves = NA, 
+         Elasmobranchii = NA, 
+         Holocephali = NA, 
+         Mammalia = NA, 
+         Reptilia = NA, 
+         Teleostei = NA, 
+         Chondrostei = NA, 
+         Petromyzonti = NA) 
+
+# Count the number of bycatch by Year / Ecoregion / Order
+# The loop goes row by row to fill the summurized information
+
+for(II in 1:nrow(summaryData)){
+  dataRef <- D3[which(D3$ecoregion == summaryData$ecoregion[II] & D3$year == summaryData$year[II]), ]
+  
+  summaryData$Aves[II] <- sum(dataRef$individualsWithPingers[which(dataRef$classname == "Aves")], na.rm = TRUE) + 
+    sum(dataRef$individualsWithoutPingers[which(dataRef$classname == "Aves")], na.rm = TRUE)
+  
+  summaryData$Elasmobranchii[II] <- sum(dataRef$individualsWithPingers[which(dataRef$classname == "Elasmobranchii")], na.rm = TRUE) + 
+    sum(dataRef$individualsWithoutPingers[which(dataRef$classname == "Elasmobranchii")], na.rm = TRUE)
+  
+  summaryData$Holocephali[II] <- sum(dataRef$individualsWithPingers[which(dataRef$classname == "Holocephali")], na.rm = TRUE) + 
+    sum(dataRef$individualsWithoutPingers[which(dataRef$classname == "Holocephali")], na.rm = TRUE)
+  
+  summaryData$Mammalia[II] <- sum(dataRef$individualsWithPingers[which(dataRef$classname == "Mammalia")], na.rm = TRUE) + 
+    sum(dataRef$individualsWithoutPingers[which(dataRef$classname == "Mammalia")], na.rm = TRUE)
+  
+  summaryData$Reptilia[II] <- sum(dataRef$individualsWithPingers[which(dataRef$classname == "Reptilia")], na.rm = TRUE) + 
+    sum(dataRef$individualsWithoutPingers[which(dataRef$classname == "Reptilia")], na.rm = TRUE)
+  
+  summaryData$Teleostei[II] <- sum(dataRef$individualsWithPingers[which(dataRef$classname == "Teleostei")], na.rm = TRUE) + 
+    sum(dataRef$individualsWithoutPingers[which(dataRef$classname == "Teleostei")], na.rm = TRUE)
+  
+  summaryData$Chondrostei[II] <- sum(dataRef$individualsWithPingers[which(dataRef$classname == "Chondrostei")], na.rm = TRUE) + 
+    sum(dataRef$individualsWithoutPingers[which(dataRef$classname == "Chondrostei")], na.rm = TRUE)
+  
+  summaryData$Petromyzonti[II] <- sum(dataRef$individualsWithPingers[which(dataRef$classname == "Petromyzonti")], na.rm = TRUE) + 
+    sum(dataRef$individualsWithoutPingers[which(dataRef$classname == "Petromyzonti")], na.rm = TRUE)
+  
+  rm(dataRef)
+}
+
+
+# Restructure data to plot
+# transform the data to have classname as a column
+data_toPlot <- data.frame(ecoregion = rep(summaryData$ecoregion, 8),
+                          year = rep(summaryData$year, 8),
+                          className = c(rep('Aves', nrow(summaryData)),
+                                        rep('Elasmobranchii', nrow(summaryData)),
+                                        rep('Holocephali', nrow(summaryData)),
+                                        rep('Mammalia', nrow(summaryData)),
+                                        rep('Reptilia', nrow(summaryData)),
+                                        rep('Teleostei', nrow(summaryData)),
+                                        rep('Chondrostei', nrow(summaryData)),
+                                        rep('Petromyzonti', nrow(summaryData))),
+                          bycatch_numInd = c(summaryData$Aves, 
+                                             summaryData$Elasmobranchii, 
+                                             summaryData$Holocephali, 
+                                             summaryData$Mammalia,
+                                             summaryData$Reptilia, 
+                                             summaryData$Teleostei,
+                                             summaryData$Chondrostei, 
+                                             summaryData$Petromyzonti))
+
+# shorten some names =========================================
+data_toPlot <- 
+  data_toPlot %>% 
+  mutate(ecoregion = case_when(
+    ecoregion == 'Aegean-Levantine Sea' ~ 'Aegean-Levantine Sea' , 
+    ecoregion == 'Bay of Biscay and the Iberian Coast' ~ 'Bay Biscay & Iberian Coast', 
+    ecoregion == 'Ionian Sea and the Central Mediterranean Sea' ~ 'Ionian & Central Mediterranean' , 
+    ecoregion == 'Western Mediterranean Sea' ~ 'Western Mediterranean' , 
+    ecoregion == 'Oceanic Northeast Atlantic' ~ 'Oceanic NE Atlantic' , 
+    .default = ecoregion
+  ))
+
+# From this table, create sub-dataset
+# birds, mammals, turtles 
+data_toPlot_noFish <- data_toPlot[which(data_toPlot$className == 'Aves' |
+                                          data_toPlot$className == 'Mammalia' |
+                                          data_toPlot$className == 'Reptilia'), ]
+# sharks
+data_toPlot_elasmo <- data_toPlot[which(data_toPlot$className == 'Elasmobranchii'), ]
+# All pets
+data_toPlot_allPETS <- data_toPlot[which(data_toPlot$className == 'Aves' |
+                                           data_toPlot$className == 'Mammalia' |
+                                           data_toPlot$className == 'Reptilia' |
+                                           data_toPlot$className == 'Elasmobranchii'), ]
+## split data in two
+data_toPlot_allPETS_a <- data_toPlot_allPETS[which(data_toPlot_allPETS$ecoregion == 'Adriatic Sea' |
+                                                     data_toPlot_allPETS$ecoregion == 'Aegean-Levantine Sea' |
+                                                     data_toPlot_allPETS$ecoregion == 'Azores' |
+                                                     data_toPlot_allPETS$ecoregion == 'Baltic Sea' |
+                                                     data_toPlot_allPETS$ecoregion == 'Barents Sea'), ] 
+
+data_toPlot_allPETS_b <- data_toPlot_allPETS[which(data_toPlot_allPETS$ecoregion == 'Bay Biscay & Iberian Coast' |
+                                                     data_toPlot_allPETS$ecoregion == 'Black Sea' |
+                                                     data_toPlot_allPETS$ecoregion == 'Celtic Seas' |
+                                                     data_toPlot_allPETS$ecoregion == 'Faroes' |
+                                                     data_toPlot_allPETS$ecoregion == 'Greater North Sea' |
+                                                     data_toPlot_allPETS$ecoregion == 'Greenland Sea'), ]
+data_toPlot_allPETS_b$bycatch_numInd[which(data_toPlot_allPETS_b$bycatch_numInd > 10000)] <- 10000
+
+
+data_toPlot_allPETS_c <- data_toPlot_allPETS[which(data_toPlot_allPETS$ecoregion == 'Icelandic Waters' |
+                                                     data_toPlot_allPETS$ecoregion == 'Ionian & Central Mediterranean' |
+                                                     data_toPlot_allPETS$ecoregion == 'North West Atlantic' |
+                                                     data_toPlot_allPETS$ecoregion == 'Norwegian Sea' |
+                                                     data_toPlot_allPETS$ecoregion == 'Oceanic NE Atlantic' |
+                                                     data_toPlot_allPETS$ecoregion == 'Western Mediterranean'), ]
+
+data_toPlot_allPETS_list = list("data_toPlot_allPETS_a" = data_toPlot_allPETS_a,
+                                "data_toPlot_allPETS_b" = data_toPlot_allPETS_b,
+                                "data_toPlot_allPETS_c" = data_toPlot_allPETS_c)
+
+
+
+```
+
+## plot 
+
+```{r bycatch_reporting_plot,cache=TRUE,eval=T,echo=T,include=T}
+
+## Number bycatch birds / mammals / turtles
+
+plt <- ggplot(data_toPlot_noFish,aes(x = year,y = bycatch_numInd,
+                                             fill = className,
+                                             label = className)) +
+  geom_col(stat = 'identity', position = 'dodge', width = 0.75) +
+  scale_fill_manual(name = '', values = c('Aves' = '#F8766D', 
+                                          'Mammalia' = '#00BA38',
+                                          'Reptilia' = '#619CFF')) +
+  
+  facet_wrap(~ecoregion, ncol = 3, nrow = 6) +
+  
+  labs(fill = " ") +
+  ylab("Number reported bycatch") +
+  xlab(" ") +
+  
+  scale_x_continuous(breaks = years_unique) +
+
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+        legend.position = "bottom",
+        panel.grid.minor.x = element_blank(),
+        panel.background = element_blank()) +
+  guides(fill = guide_legend(nrow = 1))
+print(plt)
+textcaption <- ""
+print(textcaption)
+filename <- here("outputs", "numBycatch_birdsMammalTurtle.png")
+png(filename, res = 300, width = 14, height = 18, unit = "cm")
+print(plt)
+dev.off()
+read_docx() |>
+    body_add_img(
+        src = filename,
+        width = 14, height = 18, unit = "cm",
+        style = "centered"
+    ) |>
+    body_add_par(value = textcaption, style = "centered") |>
+    print(target = sub(".png", ".docx", filename))
+
+
+
+
+# Elasmo ==================================================================
+
+plt <- ggplot(data_toPlot_elasmo, aes(x = year,y = bycatch_numInd,
+                                                fill = className,
+                                                label = className)) +
+  geom_col(stat = 'identity', position = 'dodge', width = 0.5) +
+  scale_fill_manual(name = '', values = c('Elasmobranchii' = "#E76BF3")) +
+  
+  facet_wrap(~ecoregion, ncol = 3, nrow = 6) +
+  
+  labs(fill = " ") +
+  ylab("Number reported bycatch") +
+  xlab(" ") +
+  
+  scale_x_continuous(breaks = years_unique) +
+  # scale_y_continuous(trans=scales::pseudo_log_trans(base = 10), breaks = c(0, 100, 1000, 10000, 60000)) +
+  
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+        legend.position = "bottom",
+        panel.grid.minor.x = element_blank(),
+        panel.background = element_blank()) +
+  guides(fill = guide_legend(nrow = 1))
+print(plt)
+textcaption <- ""
+print(textcaption)
+filename <- here("outputs", "numBycatch_elasmo.png")
+png(filename, res = 300, width = 14, height = 18, unit = "cm")
+print(plt)
+dev.off()
+read_docx() |>
+    body_add_img(
+        src = filename,
+        width = 14, height = 18, unit = "cm",
+        style = "centered"
+    ) |>
+    body_add_par(value = textcaption, style = "centered") |>
+    print(target = sub(".png", ".docx", filename))
+
+
+
+
+# All pets ==================================================================
+
+# fix y-axis
+
+range(data_toPlot_allPETS$bycatch_numInd[which(data_toPlot_allPETS$className == 'Aves')])
+range(data_toPlot_allPETS$bycatch_numInd[which(data_toPlot_allPETS$className == 'Mammalia')])
+range(data_toPlot_allPETS$bycatch_numInd[which(data_toPlot_allPETS$className == 'Reptilia')])
+range(data_toPlot_allPETS$bycatch_numInd[which(data_toPlot_allPETS$className == 'Elasmobranchii')])
+
+dummyData_yaxis_a <- data.frame(ecoregion = rep(c('Adriatic Sea', 'Aegean-Levantine Sea', 'Azores', 'Baltic Sea', 'Barents Sea'), 4),
+                                year = rep(2017, (5*4)),
+                                className = c(rep('Aves', 5), rep('Mammalia', 5), rep('Reptilia', 5), rep('Elasmobranchii', 5)),
+                                bycatch_numInd = c(rep(1050, 5), rep(1000, 5), rep(170, 5), rep(10000, 5))) #set y-axis max for each species
+
+dummyData_yaxis_b <- data.frame(ecoregion = rep(c('Bay Biscay & Iberian Coast', 'Black Sea', 'Celtic Seas', 'Faroes', 'Greater North Sea', 'Greenland Sea'), 4),
+                                year = rep(2017, (6*4)),
+                                className = c(rep('Aves', 6), rep('Mammalia', 6), rep('Reptilia', 6), rep('Elasmobranchii', 6)),
+                                bycatch_numInd = c(rep(1050, 6), rep(1000, 6), rep(170, 6), rep(10000, 6))) #set y-axis max for each species
+
+dummyData_yaxis_c <- data.frame(ecoregion = rep(c('Icelandic Waters', 'Ionian & Central Mediterranean', 'North West Atlantic', 'Norwegian Sea', 'Oceanic NE Atlantic', 'Western Mediterranean'), 4),
+                                year = rep(2017, (6*4)),
+                                className = c(rep('Aves', 6), rep('Mammalia', 6), rep('Reptilia', 6), rep('Elasmobranchii', 6)),
+                                bycatch_numInd = c(rep(1050, 6), rep(1000, 6), rep(170, 6), rep(10000, 6))) #set y-axis max for each species
+
+dummyData_yaxis_list = list("dummyData_yaxis_a" = dummyData_yaxis_a,
+                            "dummyData_yaxis_b" = dummyData_yaxis_b,
+                            "dummyData_yaxis_c" = dummyData_yaxis_c)
+
+
+# Make plot =================
+# Loop to produce the figure a/b/c
+
+lapply(1:3, function(x){
+  
+  plt <- ggplot(data_toPlot_allPETS_list[[x]], 
+                          aes(x = year,
+                              y = bycatch_numInd,
+                              fill = className,
+                              label = className)) +
+    geom_col(stat = 'identity', position = 'dodge', width = 0.75) +
+    scale_fill_manual(name = '', values = c('Aves' = '#F8766D', 
+                                            'Mammalia' = '#00BA38',
+                                            'Reptilia' = '#619CFF',
+                                            'Elasmobranchii' = '#E76BF3'),
+                      labels = c('Aves' = 'Aves', 
+                                 'Mammalia' = 'Mammalia',
+                                 'Reptilia' = 'Reptilia',
+                                 'Elasmobranchii' = 'Elasmobranchii')) +
+    
+    facet_grid(className ~ ecoregion, scales = "free") +
+    geom_point(data = dummyData_yaxis_list[[x]], col = 'white', alpha = 0) +
+    
+    labs(fill = " ") +
+    ylab(" ") +
+    xlab(" ") +
+    
+    scale_x_continuous(breaks = years_unique) +
+    
+    theme_bw() +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+          legend.position = "right",
+          panel.grid.minor.x = element_blank(),
+          panel.background = element_blank()) +
+    guides(fill = guide_legend(nrow = 4))
+  
+}) -> data_toPlot_allPETS_plot
+
+textcaption <- "Bycatch reporting (individual numbers) by ecoregion from 2017 to 2024, across all metiers. Note that in 2017 and 2018 numbers are capped at 14,000 from 66,524 and 19,206 respectively to improve visualization"
+print(textcaption)
+filename <- here("outputs", "numBycatch_allPETSplots.png")
+png(filename, res = 300, width = 35, height = 37, unit = "cm")
+plotLayout = rbind(c(1),
+                   c(2),
+                   c(3))
+grid.arrange(data_toPlot_allPETS_plot[[1]],
+             data_toPlot_allPETS_plot[[2]],
+             data_toPlot_allPETS_plot[[3]],
+             ncol = 1, layout_matrix = plotLayout)
+dev.off()
+read_docx() |>
+    body_add_img(
+        src = filename,
+        width = 15, height = 15, unit = "cm",
+        style = "centered"
+    ) |>
+    body_add_par(value = textcaption, style = "centered") |>
+    print(target = sub(".png", ".docx", filename))
+
+
+
 ```
 
 # Stuff 

@@ -2,8 +2,8 @@
 title: "Tor A / WGBYC 2026"
 subtittle: "subtitle" 
 date: "`r format(Sys.Date(), '%d %B %Y')`"
-author: Laurent Dubroca 
-bibliography: /Users/moi/zotero/exportdb/MyLibrary.bib 
+author: Laurent Dubroca, Guillaume Chero, Germain Boussarie, Jani, Sam Cox, and members of TOR A WGBYC 2026 
+#bibliography: /Users/moi/zotero/exportdb/MyLibrary.bib 
 number-sections: true
 toc: true
 toc-depth: 3
@@ -65,11 +65,11 @@ library(grid)
 library(glue)
 library(rnaturalearth)
 library(rnaturalearthdata)
-library(lwgeom)
 library(viridis)
 library(ggforce)
 library(stringr)
 library(gridExtra)
+library(cowplot)
 
 here::i_am("project.Rproj")
 ```
@@ -1956,7 +1956,7 @@ spatialCoverage_L4 <- left_join(
 
 ## Plot the map
 
-```{r effort_monitoring_plot_map,cache=TRUE,eval=T,echo=T,include=T}
+```{r effort_monitoring_plot_map,cache=TRUE,eval=Sys.info()["sysname"]!="Darwin",echo=T,include=T}
 
 ## color palette options to avoid a highly controversial continuous log scale
 c("#FFCCCC", "#FF9999", "#FF6666", "#FF3333", "#FF0000", "#CC0000") # old and ugly
@@ -2188,7 +2188,7 @@ read_docx() |>
 
 ## Prepare data
 
-```{r bycatch_reporting_preparation, cache=TRUE,eval=T,echo=T,include=T}
+```{r bycatch_reporting_preparation,cache=TRUE,eval=T,echo=T,include=T}
 # Select parameters =======================================
 
 ecoregions_unique <- unique(D3$ecoregion)

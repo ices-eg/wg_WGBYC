@@ -403,6 +403,14 @@ save_as_docx(
 )
 ```
 
+
+# Merge country 
+
+```{r}
+
+```
+
+
 # Monitoring methods overview 
 
 By days at sea, the second plot use the BEAM filter.

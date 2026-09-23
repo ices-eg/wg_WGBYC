@@ -79,7 +79,7 @@ D3$individualsWithoutPingers[which(D3$individualsWithoutPingers < 0)]
 
 # 5. Select parameters =======================================
 
-ecoregions_unique <- unique(D3$ecoregion)
+country_unique <- unique(D3$country)
 years_unique <- c(2017:2025)
 path_export = "./2026/outputs/"
 
@@ -98,8 +98,8 @@ D3 <-
 ## 6.2 Summary dataset ===============================
 
 ### 6.2.1 Create a summary data empty ==============================
-summaryData <- expand.grid(years_unique, ecoregions_unique) %>% 
-  rename(year = Var1, ecoregion = Var2) %>% 
+summaryData <- expand.grid(years_unique, country_unique) %>% 
+  rename(year = Var1, country = Var2) %>% 
   data.frame() %>% 
   mutate(Aves = NA, 
          Elasmobranchii = NA, 
@@ -115,7 +115,7 @@ summaryData <- expand.grid(years_unique, ecoregions_unique) %>%
 # The loop goes row by row to fill the summurized information
 
 for(II in 1:nrow(summaryData)){
-  dataRef <- D3[which(D3$ecoregion == summaryData$ecoregion[II] & D3$year == summaryData$year[II]), ]
+  dataRef <- D3[which(D3$country == summaryData$country[II] & D3$year == summaryData$year[II]), ]
   
   summaryData$Aves[II] <- sum(dataRef$individualsWithPingers[which(dataRef$classname == "Aves")], na.rm = TRUE) + 
     sum(dataRef$individualsWithoutPingers[which(dataRef$classname == "Aves")], na.rm = TRUE)
@@ -147,7 +147,7 @@ for(II in 1:nrow(summaryData)){
 
 ### 6.2.3 Restructure data to plot =================================================
 # transform the data to have classname as a column
-data_toPlot <- data.frame(ecoregion = rep(summaryData$ecoregion, 8),
+data_toPlot <- data.frame(country = rep(summaryData$country, 8),
                           year = rep(summaryData$year, 8),
                           className = c(rep('Aves', nrow(summaryData)),
                                         rep('Elasmobranchii', nrow(summaryData)),
@@ -167,16 +167,17 @@ data_toPlot <- data.frame(ecoregion = rep(summaryData$ecoregion, 8),
                                              summaryData$Petromyzonti))
 
 ### 6.2.4 Shorten some names =========================================
-data_toPlot <- 
-  data_toPlot %>% 
-  mutate(ecoregion = case_when(
-    ecoregion == 'Aegean-Levantine Sea' ~ 'Aegean-Levantine Sea' , 
-    ecoregion == 'Bay of Biscay and the Iberian Coast' ~ 'Bay Biscay & Iberian Coast', 
-    ecoregion == 'Ionian Sea and the Central Mediterranean Sea' ~ 'Ionian & Central Mediterranean' , 
-    ecoregion == 'Western Mediterranean Sea' ~ 'Western Mediterranean' , 
-    ecoregion == 'Oceanic Northeast Atlantic' ~ 'Oceanic NE Atlantic' , 
-    .default = ecoregion
-  ))
+# data_toPlot <- 
+#   data_toPlot %>% 
+#   
+#   mutate(ecoregion = case_when(
+#     ecoregion == 'Aegean-Levantine Sea' ~ 'Aegean-Levantine Sea' , 
+#     ecoregion == 'Bay of Biscay and the Iberian Coast' ~ 'Bay Biscay & Iberian Coast', 
+#     ecoregion == 'Ionian Sea and the Central Mediterranean Sea' ~ 'Ionian & Central Mediterranean' , 
+#     ecoregion == 'Western Mediterranean Sea' ~ 'Western Mediterranean' , 
+#     ecoregion == 'Oceanic Northeast Atlantic' ~ 'Oceanic NE Atlantic' , 
+#     .default = ecoregion
+#   ))
 
 
 ### 6.2.5 From this table, create sub-dataset ===========================
@@ -198,32 +199,32 @@ data_toPlot_allPETS <- data_toPlot[which(data_toPlot$className == 'Aves' |
                                            data_toPlot$className == 'Elasmobranchii'), ]
 
 ## split data in two
-data_toPlot_allPETS_a <- data_toPlot_allPETS[which(data_toPlot_allPETS$ecoregion == 'Adriatic Sea' |
-                                                     data_toPlot_allPETS$ecoregion == 'Aegean-Levantine Sea' |
-                                                     data_toPlot_allPETS$ecoregion == 'Azores' |
-                                                     data_toPlot_allPETS$ecoregion == 'Baltic Sea' |
-                                                     data_toPlot_allPETS$ecoregion == 'Barents Sea'), ] 
-
-data_toPlot_allPETS_b <- data_toPlot_allPETS[which(data_toPlot_allPETS$ecoregion == 'Bay Biscay & Iberian Coast' |
-                                                     data_toPlot_allPETS$ecoregion == 'Black Sea' |
-                                                     data_toPlot_allPETS$ecoregion == 'Celtic Seas' |
-                                                     data_toPlot_allPETS$ecoregion == 'Faroes' |
-                                                     data_toPlot_allPETS$ecoregion == 'Greater North Sea' |
-                                                     data_toPlot_allPETS$ecoregion == 'Greenland Sea'), ]
-data_toPlot_allPETS_b$bycatch_numInd[which(data_toPlot_allPETS_b$bycatch_numInd > 10000)] <- 10000
-
-
-data_toPlot_allPETS_c <- data_toPlot_allPETS[which(data_toPlot_allPETS$ecoregion == 'Icelandic Waters' |
-                                                     data_toPlot_allPETS$ecoregion == 'Ionian & Central Mediterranean' |
-                                                     data_toPlot_allPETS$ecoregion == 'North West Atlantic' |
-                                                     data_toPlot_allPETS$ecoregion == 'Norwegian Sea' |
-                                                     data_toPlot_allPETS$ecoregion == 'Oceanic NE Atlantic' |
-                                                     data_toPlot_allPETS$ecoregion == 'Western Mediterranean'), ]
-
-data_toPlot_allPETS_list = list("data_toPlot_allPETS_a" = data_toPlot_allPETS_a,
-                                "data_toPlot_allPETS_b" = data_toPlot_allPETS_b,
-                                "data_toPlot_allPETS_c" = data_toPlot_allPETS_c)
-
+# data_toPlot_allPETS_a <- data_toPlot_allPETS[which(data_toPlot_allPETS$ecoregion == 'Adriatic Sea' |
+#                                                      data_toPlot_allPETS$ecoregion == 'Aegean-Levantine Sea' |
+#                                                      data_toPlot_allPETS$ecoregion == 'Azores' |
+#                                                      data_toPlot_allPETS$ecoregion == 'Baltic Sea' |
+#                                                      data_toPlot_allPETS$ecoregion == 'Barents Sea'), ] 
+# 
+# data_toPlot_allPETS_b <- data_toPlot_allPETS[which(data_toPlot_allPETS$ecoregion == 'Bay Biscay & Iberian Coast' |
+#                                                      data_toPlot_allPETS$ecoregion == 'Black Sea' |
+#                                                      data_toPlot_allPETS$ecoregion == 'Celtic Seas' |
+#                                                      data_toPlot_allPETS$ecoregion == 'Faroes' |
+#                                                      data_toPlot_allPETS$ecoregion == 'Greater North Sea' |
+#                                                      data_toPlot_allPETS$ecoregion == 'Greenland Sea'), ]
+# data_toPlot_allPETS_b$bycatch_numInd[which(data_toPlot_allPETS_b$bycatch_numInd > 10000)] <- 10000
+# 
+# 
+# data_toPlot_allPETS_c <- data_toPlot_allPETS[which(data_toPlot_allPETS$ecoregion == 'Icelandic Waters' |
+#                                                      data_toPlot_allPETS$ecoregion == 'Ionian & Central Mediterranean' |
+#                                                      data_toPlot_allPETS$ecoregion == 'North West Atlantic' |
+#                                                      data_toPlot_allPETS$ecoregion == 'Norwegian Sea' |
+#                                                      data_toPlot_allPETS$ecoregion == 'Oceanic NE Atlantic' |
+#                                                      data_toPlot_allPETS$ecoregion == 'Western Mediterranean'), ]
+# 
+# data_toPlot_allPETS_list = list("data_toPlot_allPETS_a" = data_toPlot_allPETS_a,
+#                                 "data_toPlot_allPETS_b" = data_toPlot_allPETS_b,
+#                                 "data_toPlot_allPETS_c" = data_toPlot_allPETS_c)
+# 
 
 # 7. Plot =========================================================================================
 
@@ -237,7 +238,7 @@ plotOut_bmt <- ggplot(data_toPlot_noFish,aes(x = year,y = bycatch_numInd,
                                           'Mammalia' = '#00BA38',
                                           'Reptilia' = '#619CFF')) +
   
-  facet_wrap(~ecoregion, ncol = 3, nrow = 6) +
+  facet_wrap(~country) +
   
   labs(fill = " ") +
   ylab("Number reported bycatch") +
@@ -252,7 +253,7 @@ plotOut_bmt <- ggplot(data_toPlot_noFish,aes(x = year,y = bycatch_numInd,
         panel.background = element_blank()) +
   guides(fill = guide_legend(nrow = 1))
 
-ggsave(filename = glue(path_export, 'numBycatch_birdsMammalTurtle.jpg'), 
+ggsave(filename = glue(path_export, 'numBycatch_birdsMammalTurtle_country.jpg'), 
        plot = plotOut_bmt, width = 6, height = 8)
 
 
@@ -265,7 +266,7 @@ plotOut_elasmo <- ggplot(data_toPlot_elasmo,aes(x = year,y = bycatch_numInd,
   geom_col(stat = 'identity', position = 'dodge', width = 0.5) +
   scale_fill_manual(name = '', values = c('Elasmobranchii' = "#E76BF3")) +
   
-  facet_wrap(~ecoregion, ncol = 3, nrow = 6) +
+  facet_wrap(~country, ncol = 3, nrow = 6) +
   
   labs(fill = " ") +
   ylab("Number reported bycatch") +
@@ -281,7 +282,7 @@ plotOut_elasmo <- ggplot(data_toPlot_elasmo,aes(x = year,y = bycatch_numInd,
         panel.background = element_blank()) +
   guides(fill = guide_legend(nrow = 1))
 
-ggsave(filename = glue(path_export, 'numBycatch_elasmo.jpg'), plot = plotOut_elasmo, width = 6, height = 8)
+ggsave(filename = glue(path_export, 'numBycatch_elasmo_country.jpg'), plot = plotOut_elasmo, width = 6, height = 8)
 
 
 
@@ -289,37 +290,37 @@ ggsave(filename = glue(path_export, 'numBycatch_elasmo.jpg'), plot = plotOut_ela
 
 ### 7.3.1 fix y-axis ====================
 
-range(data_toPlot_allPETS$bycatch_numInd[which(data_toPlot_allPETS$className == 'Aves')])
-range(data_toPlot_allPETS$bycatch_numInd[which(data_toPlot_allPETS$className == 'Mammalia')])
-range(data_toPlot_allPETS$bycatch_numInd[which(data_toPlot_allPETS$className == 'Reptilia')])
-range(data_toPlot_allPETS$bycatch_numInd[which(data_toPlot_allPETS$className == 'Elasmobranchii')])
-
-dummyData_yaxis_a <- data.frame(ecoregion = rep(c('Adriatic Sea', 'Aegean-Levantine Sea', 'Azores', 'Baltic Sea', 'Barents Sea'), 4),
-                                year = rep(2017, (5*4)),
-                                className = c(rep('Aves', 5), rep('Mammalia', 5), rep('Reptilia', 5), rep('Elasmobranchii', 5)),
-                                bycatch_numInd = c(rep(1050, 5), rep(1000, 5), rep(170, 5), rep(10000, 5))) #set y-axis max for each species
-
-dummyData_yaxis_b <- data.frame(ecoregion = rep(c('Bay Biscay & Iberian Coast', 'Black Sea', 'Celtic Seas', 'Faroes', 'Greater North Sea', 'Greenland Sea'), 4),
-                                year = rep(2017, (6*4)),
-                                className = c(rep('Aves', 6), rep('Mammalia', 6), rep('Reptilia', 6), rep('Elasmobranchii', 6)),
-                                bycatch_numInd = c(rep(1050, 6), rep(1000, 6), rep(170, 6), rep(10000, 6))) #set y-axis max for each species
-
-dummyData_yaxis_c <- data.frame(ecoregion = rep(c('Icelandic Waters', 'Ionian & Central Mediterranean', 'North West Atlantic', 'Norwegian Sea', 'Oceanic NE Atlantic', 'Western Mediterranean'), 4),
-                                year = rep(2017, (6*4)),
-                                className = c(rep('Aves', 6), rep('Mammalia', 6), rep('Reptilia', 6), rep('Elasmobranchii', 6)),
-                                bycatch_numInd = c(rep(1050, 6), rep(1000, 6), rep(170, 6), rep(10000, 6))) #set y-axis max for each species
-
-dummyData_yaxis_list = list("dummyData_yaxis_a" = dummyData_yaxis_a,
-                            "dummyData_yaxis_b" = dummyData_yaxis_b,
-                            "dummyData_yaxis_c" = dummyData_yaxis_c)
-
+# range(data_toPlot_allPETS$bycatch_numInd[which(data_toPlot_allPETS$className == 'Aves')])
+# range(data_toPlot_allPETS$bycatch_numInd[which(data_toPlot_allPETS$className == 'Mammalia')])
+# range(data_toPlot_allPETS$bycatch_numInd[which(data_toPlot_allPETS$className == 'Reptilia')])
+# range(data_toPlot_allPETS$bycatch_numInd[which(data_toPlot_allPETS$className == 'Elasmobranchii')])
+# 
+# dummyData_yaxis_a <- data.frame(ecoregion = rep(c('Adriatic Sea', 'Aegean-Levantine Sea', 'Azores', 'Baltic Sea', 'Barents Sea'), 4),
+#                                 year = rep(2017, (5*4)),
+#                                 className = c(rep('Aves', 5), rep('Mammalia', 5), rep('Reptilia', 5), rep('Elasmobranchii', 5)),
+#                                 bycatch_numInd = c(rep(1050, 5), rep(1000, 5), rep(170, 5), rep(10000, 5))) #set y-axis max for each species
+# 
+# dummyData_yaxis_b <- data.frame(ecoregion = rep(c('Bay Biscay & Iberian Coast', 'Black Sea', 'Celtic Seas', 'Faroes', 'Greater North Sea', 'Greenland Sea'), 4),
+#                                 year = rep(2017, (6*4)),
+#                                 className = c(rep('Aves', 6), rep('Mammalia', 6), rep('Reptilia', 6), rep('Elasmobranchii', 6)),
+#                                 bycatch_numInd = c(rep(1050, 6), rep(1000, 6), rep(170, 6), rep(10000, 6))) #set y-axis max for each species
+# 
+# dummyData_yaxis_c <- data.frame(ecoregion = rep(c('Icelandic Waters', 'Ionian & Central Mediterranean', 'North West Atlantic', 'Norwegian Sea', 'Oceanic NE Atlantic', 'Western Mediterranean'), 4),
+#                                 year = rep(2017, (6*4)),
+#                                 className = c(rep('Aves', 6), rep('Mammalia', 6), rep('Reptilia', 6), rep('Elasmobranchii', 6)),
+#                                 bycatch_numInd = c(rep(1050, 6), rep(1000, 6), rep(170, 6), rep(10000, 6))) #set y-axis max for each species
+# 
+# dummyData_yaxis_list = list("dummyData_yaxis_a" = dummyData_yaxis_a,
+#                             "dummyData_yaxis_b" = dummyData_yaxis_b,
+#                             "dummyData_yaxis_c" = dummyData_yaxis_c)
+# 
 
 ### 7.3.2 Make plot =================
 # Loop to produce the figure a/b/c
 
-lapply(1:3, function(x){
+# lapply(1:3, function(x){
   
-  plotOut_all_a <- ggplot(data_toPlot_allPETS_list[[x]], 
+  plotOut_all_a <- ggplot(data_toPlot_allPETS, 
                           aes(x = year,
                               y = bycatch_numInd,
                               fill = className,
@@ -334,8 +335,8 @@ lapply(1:3, function(x){
                                  'Reptilia' = 'Reptilia',
                                  'Elasmobranchii' = 'Elasmobranchii')) +
     
-    facet_grid(className ~ ecoregion, scales = "free") +
-    geom_point(data = dummyData_yaxis_list[[x]], col = 'white', alpha = 0) +
+    facet_grid(className ~ country, scales = "free") +
+   # geom_point(data = dummyData_yaxis_list[[x]], col = 'white', alpha = 0) +
     
     labs(fill = " ") +
     ylab(" ") +
@@ -350,21 +351,15 @@ lapply(1:3, function(x){
           panel.background = element_blank()) +
     guides(fill = guide_legend(nrow = 4))
   
-}) -> data_toPlot_allPETS_plot
+#}) -> data_toPlot_allPETS_plot
 
 
 
 
 ### 7.3.3 Combined and save =================
 
-png(filename = glue(path_export, "numBycatch_allPETSplots.png"), width = 30, height = 38, res = 300, units = "cm")
-plotLayout = rbind(c(1),
-                   c(2),
-                   c(3))
-grid.arrange(data_toPlot_allPETS_plot[[1]],
-             data_toPlot_allPETS_plot[[2]],
-             data_toPlot_allPETS_plot[[3]],
-             ncol = 1, layout_matrix = plotLayout)
+png(filename = glue(path_export, "numBycatch_allPETSplots_country.png"), width = 75, height = 38, res = 300, units = "cm")
+plotOut_all_a
 dev.off()
 
 

@@ -1717,6 +1717,7 @@ world <- rnaturalearth::ne_countries(scale = "medium", returnclass = "sf") %>%
 # ICES area and GFCM
 # The shape file come from Laurent Dubroca, we need to found a wya to source it correctly
 ices_gfcm <- readRDS(here("data", "vocab", "allgeo.rds"))
+ices_gfcm <- ices_gfcm %>% filter(type %in% c("ices_subdivision", "ices_division"))
 
 # NAFO
 if (include_NAFO_areas) {
@@ -2104,7 +2105,7 @@ plt_fishing_effort <- create_plot(
     facet_nrow = 3
 )
 print(plt_fishing_effort)
-textcaption <- "Metier level 3 fishing effort for 2025 (days at sea) submitted to the WGBYC database for monitoring methods retained for use under ToR C for the calculation of bycatch estimates for 2024. This includes all scientific observer data, all electronic mon-itoring data, and all vessel crew data (except for Estonia) but excludes reports from logbooks and port observers. Transparent = no data or zero."
+textcaption <- "Metier level 3 fishing effort for 2025 (days at sea) submitted to the WGBYC database for monitoring methods retained for use under ToR C for the calculation of bycatch estimates for 2025 This includes all scientific observer data, all electronic mon-itoring data, and all vessel crew data (except for Estonia) but excludes reports from logbooks and port observers. Transparent = no data or zero."
 print(textcaption)
 filename <- here("outputs", glue(list_table$plt_fishing_effort[1], "_fishingEffort_L3.png"))
 png(filename, res = 300, width = 30, height = 20, unit = "cm")
@@ -2134,7 +2135,7 @@ plt_monitoring_effort <- create_plot(
     facet_nrow = 3
 )
 print(plt_monitoring_effort)
-textcaption <- "Metier level 3 monitoring effort for 2025 (days at sea) submitted to the WGBYC database for monitoring methods retained for use under ToR C for the calculation of bycatch estimates for 2024. This includes all scientific observer data, all elec-tronic monitoring data, and all vessel crew data (except for Estonia) but excludes reports from logbooks and port observers. Transparent = no data or zero."
+textcaption <- "Metier level 3 monitoring effort for 2025 (days at sea) submitted to the WGBYC database for monitoring methods retained for use under ToR C for the calculation of bycatch estimates for 2025 This includes all scientific observer data, all elec-tronic monitoring data, and all vessel crew data (except for Estonia) but excludes reports from logbooks and port observers. Transparent = no data or zero."
 print(textcaption)
 filename <- here("outputs", glue(list_table$plt_monitoring_effort[1], "_monitoringEffort_L3.png"))
 png(filename, res = 300, width = 30, height = 20, unit = "cm")
@@ -2164,7 +2165,7 @@ plt_monitoring_coverage <- create_plot(
     facet_nrow = 3
 )
 print(plt_monitoring_coverage)
-textcaption <- "Metier level 3 monitoring coverage of 2025 data submitted to the WGBYC database for monitoring methods retained for use under ToR C for the calculation of bycatch estimates for 2024. This includes all scientific observer data, all electronic mon-itoring data, and all vessel crew data (except for Estonia) but excludes reports from logbooks and port observers. Transparent = no data or zero. Coverage calculated as monitoring effort as a percentage of fishing effort (using numbers presented in Figures X3 & X4 above). Transparent = no data or zero."
+textcaption <- "Metier level 3 monitoring coverage of 2025 data submitted to the WGBYC database for monitoring methods retained for use under ToR C for the calculation of bycatch estimates for 2025 This includes all scientific observer data, all electronic mon-itoring data, and all vessel crew data (except for Estonia) but excludes reports from logbooks and port observers. Transparent = no data or zero. Coverage calculated as monitoring effort as a percentage of fishing effort (using numbers presented in Figures X3 & X4 above). Transparent = no data or zero."
 print(textcaption)
 filename <- here("outputs", glue(list_table$plt_monitoring_coverage[1], "_monitoringCoverage_L3.png"))
 png(filename, res = 300, width = 30, height = 20, unit = "cm")

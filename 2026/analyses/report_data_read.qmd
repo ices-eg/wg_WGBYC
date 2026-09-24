@@ -2,8 +2,8 @@
 title: "Tor A / WGBYC 2026"
 subtittle: "subtitle" 
 date: "`r format(Sys.Date(), '%d %B %Y')`"
-author: Laurent Dubroca 
-bibliography: /Users/moi/zotero/exportdb/MyLibrary.bib 
+author: Laurent Dubroca, Guillaume Chero, Germain Boussarie, Jani, Sam Cox, and members of TOR A WGBYC 2026 
+#bibliography: /Users/moi/zotero/exportdb/MyLibrary.bib 
 number-sections: true
 toc: true
 toc-depth: 3
@@ -30,11 +30,14 @@ reproducible framework [@powers2019].
 #| echo: false
 #|
 #describe dir contains in the readme.md
+if(F){
+library(here)
 here::i_am("project.Rproj")
 source(here("analyses", "printdir.R"))
 printdir(here("data"), here("data", "README.md"))
 printdir(here("outputs"), here("outputs", "README.md"))
 quarto::quarto_render("report_data_read.qmd")
+}
 ```
 
 
@@ -65,11 +68,11 @@ library(grid)
 library(glue)
 library(rnaturalearth)
 library(rnaturalearthdata)
-library(lwgeom)
 library(viridis)
 library(ggforce)
 library(stringr)
 library(gridExtra)
+library(cowplot)
 
 here::i_am("project.Rproj")
 ```
@@ -87,7 +90,7 @@ print(currentyear)
 # Data
 
 WGBYC wunderbar API use + ICES vocab request to ensure reproducibility (just
-in case if, for example, some data are submitted again).
+in case if, for example, some data are submitted again, but this never happens almost sometimes regularly).
 
 ```{r dataco,eval=T,include=F}
 #|
@@ -120,6 +123,8 @@ if (file.exists(here("data", "D1_wgbyc.csv"))) {
     linkD1 <- "https://bycatch.ices.dk/api/GetD1_Fishing_effort"
     linkD2 <- "https://bycatch.ices.dk/api/GetD2_Bycatch_monitoring_effort"
     linkD3 <- "https://bycatch.ices.dk/api/GetD3_BycatchEvent"
+    linkD4<-paste0("https://bycatch.ices.dk/api/GetOverviewSubmissionTable/",currentyear+1)
+    linkD5<-"https://bycatch.ices.dk/api/GetByCatchRoadMapListSpecies"
     options(icesSAG.use_token = T)
     resp1 <- ices_get_jwt(linkD1)
     D1 <- content(resp1, as = "text")
@@ -136,6 +141,13 @@ if (file.exists(here("data", "D1_wgbyc.csv"))) {
         D3tmp <- fromJSON(D3tmp)
         D3 <- rbind(D3, D3tmp)
     }
+    #add D4 and D5
+    resp4<-ices_get_jwt(linkD4)
+    D4<-content(resp4,as="text")
+    D4<-fromJSON(D4)
+    resp5<-ices_get_jwt(linkD5)
+    D5<-content(resp5,as="text")
+    D5<-fromJSON(D5)
     #filtering on year of interest
     D1 <- D1 %>% filter(year %in% 2017:2025)
     D2 <- D2 %>% filter(year %in% 2017:2025)
@@ -144,6 +156,8 @@ if (file.exists(here("data", "D1_wgbyc.csv"))) {
     write.csv(D1, file = here("data", "D1_wgbyc.csv"), row.names = F)
     write.csv(D2, file = here("data", "D2_wgbyc.csv"), row.names = F)
     write.csv(D3, file = here("data", "D3_wgbyc.csv"), row.names = F)
+    write.csv(D4, file = here("data", "D4_wgbyc.csv"), row.names = F)
+    write.csv(D5, file = here("data", "D5_wgbyc.csv"), row.names = F)
 }
 
 #get extra info to label stuff
@@ -442,8 +456,34 @@ D3 <- D3 %>%
 
 # Monitoring methods overview 
 
-By days at sea, the second plot use the BEAM filter.
+Basic info for the text
 
+
+```{r textmonitoringoverview,cache=TRUE,eval=T,echo=T,include=T}
+nbcountryD1<-D1%>%filter(year==2025)%>%select(country_name)%>%distinct()%>%nrow()
+nbcountryD2<-D1%>%filter(year==2025)%>%select(country_name)%>%distinct()%>%nrow()
+nbcountryD3<-D1%>%filter(year==2025)%>%select(country_name)%>%distinct()%>%nrow()
+#compute 
+
+deadline<- as.Date("2026-07-03")
+startworkshop<- as.Date("2026-09-21")
+tmp<-D4%>%
+    mutate(diffdeadline=deadline-as.Date(dateUpload))%>%
+    mutate(diffworkshop=startworkshop-as.Date(dateUpload)) %>%
+    mutate(transmissionStatus=ifelse(diffdeadline>=0,"Before the deadline","After the deadline"))%>%
+    mutate(transmissionStatus=ifelse(diffdeadline<0 & diffworkshop >=0,"After the deadline and before the WG",transmissionStatus))%>%
+    mutate(transmissionStatus=ifelse(diffworkshop <0,"After the deadline and during the WG",transmissionStatus))
+
+mean(tmp$diffdeadline)
+median(tmp$diffdeadline)
+table(tmp$transmissionStatus)
+
+
+
+```
+
+
+By days at sea, the second plot use the BEAM filter.
 
 ```{r monitoringoverviewdas,cache=TRUE,eval=T,echo=T,include=T}
 # prepare data for fig 3.3 (reported monitoring method)
@@ -1956,7 +1996,7 @@ spatialCoverage_L4 <- left_join(
 
 ## Plot the map
 
-```{r effort_monitoring_plot_map,cache=TRUE,eval=T,echo=T,include=T}
+```{r effort_monitoring_plot_map,cache=TRUE,eval=Sys.info()["sysname"]!="Darwin",echo=T,include=T}
 
 ## color palette options to avoid a highly controversial continuous log scale
 c("#FFCCCC", "#FF9999", "#FF6666", "#FF3333", "#FF0000", "#CC0000") # old and ugly
@@ -2188,7 +2228,7 @@ read_docx() |>
 
 ## Prepare data
 
-```{r bycatch_reporting_preparation, cache=TRUE,eval=T,echo=T,include=T}
+```{r bycatch_reporting_preparation,cache=TRUE,eval=T,echo=T,include=T}
 # Select parameters =======================================
 
 ecoregions_unique <- unique(D3$ecoregion)

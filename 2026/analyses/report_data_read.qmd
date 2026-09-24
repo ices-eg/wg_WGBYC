@@ -290,10 +290,10 @@ list_table <- list(
   plt_fishing_effort = c("Figure 1.3", ""), 
   plt_monitoring_effort = c("Figure 1.4", ""), 
   plt_monitoring_coverage = c("Figure 1.5", ""), 
-  data_toPlot_allPETS_plot = c("Figure 1.6", ""),
-  plt_monitoring_method = c("Figure 1.7", ""), 
-  plt_monitoring_program_country = c("Figure 1.8", ""),
-  plt_incident_programm = c("Figure 1.9", ""), 
+  data_toPlot_allPETS_plot = c("Figure 1.9", ""),
+  plt_monitoring_method = c("Figure 1.6", ""), 
+  plt_monitoring_program_country = c("Figure 1.7", ""),
+  plt_incident_programm = c("Figure 1.8", ""), 
   plt_monitoring_method_country = c("Figure 1.10", ""),
   plt_em_total_das_trip = c("Figure 1.11", ""),
   plt_em_plt_incidents = c("Figure 1.12", "")
@@ -2658,6 +2658,7 @@ read_docx() |>
     ) |>
     body_add_par(value = textcaption, style = "centered") |>
     print(target = sub(".png", ".docx", filename))
+
 ```
 
 # Bycatch reporting per country
@@ -2843,9 +2844,58 @@ dev.off()
 ```
 
 
-# Stuff 
+# Descriptive text 
 
-Text
+## 1.3 
+
+```{r descriptive_text_131,cache=TRUE,eval=T,echo=T,include=T}
+
+# number of incidents
+n_marine_mammals <- pipo$body$dataset %>% filter(variable == "Individuals") %>% summarise(sum(Mammalia, na.rm = TRUE)) %>% pull()
+n_sea_bird <- pipo$body$dataset %>% filter(variable == "Individuals") %>% summarise(sum(Aves, na.rm = TRUE)) %>% pull()
+n_marine_turtle <- pipo$body$dataset %>% filter(variable == "Individuals") %>% summarise(sum(Reptiles, na.rm = TRUE)) %>% pull()
+n_fishes <- pipo$body$dataset %>% filter(variable == "Individuals") %>% summarise(sum(Teleostei, na.rm = TRUE)) %>% pull()
+n_holocephali <- pipo$body$dataset %>% filter(variable == "Individuals") %>% summarise(sum(Holocephali, na.rm = TRUE)) %>% pull()
+n_chondrostei <- pipo$body$dataset %>% filter(variable == "Individuals") %>% summarise(sum(Chondrostei, na.rm = TRUE)) %>% pull()
+
+#  number of species
+n_species <- D3 %>%
+    filter(year == currentyear) %>%
+    mutate(classname = ifelse(is.na(classname), "Reptiles", classname)) %>%
+    group_by(classname) %>%
+    summarise(
+        nbspp = n_distinct(species),
+    ) %>% ungroup() 
+
+n_marine_mammals_species <- n_species$nbspp[n_species$classname == "Mammalia"]
+n_sea_bird_species <- n_species$nbspp[n_species$classname == "Aves"]
+n_marine_turtle_species <- n_species$nbspp[n_species$classname == "Reptilia"]
+n_fish_species <- n_species$nbspp[n_species$classname == "Teleostei"]
+n_Holocephali_species <- n_species$nbspp[n_species$classname == "Holocephali"]
+n_Chondrostei_species <- n_species$nbspp[n_species$classname == "Chondrostei"]
+
+# Effort
+total_fishing_effort <- sum(pipo$body$dataset$`Fishing Effort (das)`) %>% round(2)
+total_observed_effort <- sum(pipo$body$dataset$`Total Observed Effort (das)`) %>% round(2)
+
+text_1.3 <- glue("In total (all ecoregions combined), {n_marine_mammals} marine mammals ({n_marine_mammals_species} species), {n_sea_bird} seabirds ({n_sea_bird_species} species), {n_marine_turtle} marine turtles ({n_marine_turtle_species} species), {n_holocephali} Holocephali ({n_Holocephali_species} species) and {n_chondrostei} Chondrostei ({n_Chondrostei_species} species) were recorded as bycatch during {currentyear} Records of {n_fish_species} fish species
+from the ICES fish bycatch reference list were also reported, totaling over {n_fishes} specimens.
+The year {currentyear} totals {total_fishing_effort} (das) fishing effort and {total_observed_effort} (das) observed effort.
+")
+print(text_1.3)
+
+
+# Print it
+filename <- here("outputs", "descriptive_text.docx")
+read_docx() |>
+    body_add_par(
+        text_1.3
+    ) |>
+    print(target = filename)
+```
+
+
+## 1.3.1
 
 ```{r anotherchunk,cache=TRUE,eval=T,echo=T,include=T}
 #code

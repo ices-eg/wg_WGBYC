@@ -1,0 +1,611 @@
+---
+title: "Data Checks WGBYC 2026 - Country: `r params$country` "
+author: "ICES WGBYC Database Subgroup"
+date: "`r format(Sys.Date(), '%Y-%m-%d')`"
+output: html_document
+params:
+  country: "UNKNOWN"
+
+---
+
+
+<style>
+
+h1 {
+  background-color: #d9f2d9;
+  padding: 10px;
+  border-radius: 6px;
+}
+
+h2 {
+  background-color: #d9f2d9;
+  padding: 10px;
+  border-radius: 6px;
+}
+
+</style>
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = F, results = "asis")
+# Load libraries
+library(tidyr)
+library(dplyr)
+library(tidyverse)
+library(sf)
+library(ggplot2)
+
+# Check icon function
+check_icon <- function(x) {
+  if (isTRUE(x)) {
+    "<span style='color: green; font-weight: bold;'>✅</span>"
+  } else {
+    "<span style='color: red; font-weight: bold;'>❌</span>"
+  }
+}
+
+# Load gis info
+ices_rect <- st_read("../data/ICES_areas/ICES_Areas_20160601_cut_dense_3857.shp")
+
+# Load metier hierarchy, extracted from Decision 2008/949/EC
+metier_hierarchy <- readxl::read_excel(path = "../data/ICES_metiers_L3_L4_L5_hierarchy_Decision_2008_949_ICES_RECO.xlsx",
+                                       sheet = "Hierarchy")
+
+```
+
+
+## D1 Table - Fishing effort
+### All vessel sizes are reported, they do not overlap & there is no unknown (NK) reported
+```{r , echo = FALSE, results = "asis", warning = FALSE}
+lengths <- gsub("^VL", "", sort(unique(D1_country$vesselLengthRange)))
+
+lower <- as.numeric(substr(lengths, 1, 2))
+upper_raw <- substr(lengths, 3, 4)
+upper <- ifelse(upper_raw == "XX", Inf, as.numeric(upper_raw))
+
+vl_ranges <- data.frame(
+    code = sort(unique(D1_country$vesselLengthRange)),
+    lower = lower,
+    upper = upper)
+
+# Add frequencies
+freq <- as.data.frame(table(D1_country$vesselLengthRange))
+names(freq) <- c("code", "n")
+
+vl_ranges <- merge(vl_ranges, freq, by = "code", all.x = TRUE)
+
+overlap <- !any(vl_ranges$lower[-1] < vl_ranges$upper[-nrow(vl_ranges)], na.rm = T)
+no_NK <- !"NK" %in% D1_country$vesselLengthRange
+
+continuous <- all(
+  vl_ranges$upper[-nrow(vl_ranges)] == vl_ranges$lower[-1])
+
+cat(check_icon(overlap), "No overlapping categories.", "<br>", check_icon(no_NK),
+    "No unknown (NK) categories.")
+
+knitr::kable(vl_ranges, caption = "Vessel length ranges reported")
+
+```
+
+### Check effort (DaS) units and range
+```{r , echo = FALSE}
+range(D1_country$daysAtSeaF)
+```
+
+### Information on MetierL6 is provided (not mandatory)
+```{r , echo = FALSE, results = "asis"}
+missing_codes <- c("", "NK", "Unknown")
+
+metier_check <- D1_country %>%
+  mutate(MetierL4_check = trimws(as.character(metierL4)),
+         MetierL6_check = trimws(as.character(metierL6)),
+         L4_provided = !is.na(MetierL4_check) &
+            !MetierL4_check %in% missing_codes,
+         L6_provided = !is.na(MetierL6_check) &
+            !MetierL6_check %in% missing_codes)
+
+metier_summary <- metier_check %>%
+  filter(L4_provided) %>%
+  group_by(MetierL4 = MetierL4_check) %>%
+  summarise(
+    n_rows = n(),
+    n_L6_provided = sum(L6_provided),
+    n_L6_missing = sum(!L6_provided),
+    pct_L6_provided = 100 * n_L6_provided / n_rows,
+
+    n_distinct_L6 = n_distinct(
+      MetierL6_check[L6_provided]
+    ),
+    .groups = "drop") %>%
+  arrange(MetierL4)
+
+metier_table <- metier_summary %>%
+  knitr::kable(
+    format = "html",
+    caption = "MetierL6 information by MetierL4, if provided"
+  ) %>%
+  kableExtra::kable_styling(
+    bootstrap_options = c(
+      "striped",
+      "hover",
+      "condensed",
+      "responsive"
+    ),
+    full_width = TRUE,
+    position = "left"
+  )
+```
+
+### Information on VesselsF is provided (not mandatory)
+```{r , echo = FALSE, results = "asis"}
+missing_codes <- c("", "NK", "Unknown")
+
+VesselsF_check <- trimws(as.character(D1_country$vesselsF))
+VesselsF_provided <- !is.na(VesselsF_check) &
+    !VesselsF_check %in% missing_codes
+
+n_total <- length(VesselsF_check)
+n_VesselsF_provided <- sum(VesselsF_provided)
+n_VesselsF_missing <- sum(!VesselsF_provided)
+
+pct_VesselsF_provided <- if (n_total > 0L) {
+  100 * n_VesselsF_provided / n_total
+} else {NA_real_}
+
+any_VesselsF_provided <- n_VesselsF_provided > 0L
+
+cat(
+  check_icon(any_VesselsF_provided),
+  sprintf(
+    paste0(
+      "Information on VesselsF is provided for %s of %s records ",
+      "(%.1f%%). VesselsF is not mandatory."
+    ),
+    format(n_VesselsF_provided, big.mark = ","),
+    format(n_total, big.mark = ","),
+    pct_VesselsF_provided
+  ),
+  "<br>"
+)
+
+```
+
+### Check unique ICES area codes & no "9999"|"-9" are reported
+```{r , echo = FALSE, results = "asis"}
+no_invalid_area <- !any(D1_country$areaCode %in% c(-9, 9999, "-9", "9999"))
+
+cat(check_icon(no_invalid_area), "Valid areaCode values (-9 / 9999) have been reported.<br>")
+
+cat("Data for", length(unique(D1_country$areaCode)), "ICES areaCode has been reported.")
+
+# Proportion of the data missing because -9/9999
+cat(" Missing ICES areaCode information represents ", round((length(which(D1_country$areaCode %in% c(-9, 9999, "-9", "9999")))/length(D1_country$areaCode))*100, 5), "% of the fishing effort data.")
+
+#sort(unique(D1_country$statRec))
+```
+
+
+### Check reported metier levels are consistent (3, 4 and 5) - Commission Decision 2008/949/EC
+```{r , echo = FALSE, results = "asis"}
+# Inspect the column names
+#names(metier_hierarchy)
+
+# Rename hierarchy columns to match those from D's tables
+valid_metiers <- metier_hierarchy %>%
+  transmute(metierL3 = `L3 code`, metierL4 = `L4 code`, metierL5 = `L5 code`) %>%
+  distinct()
+
+# Make sure both df's metier codes upper cases!
+
+# Simplest approach:
+# datos_validated <- D1_country %>%
+#   left_join(valid_metiers %>%
+#               mutate(valid_combination = TRUE), 
+#             by = c("metierL3", "metierL4", "metierL5")) %>%
+#   mutate(valid_combination = coalesce(valid_combination, FALSE))
+# 
+# # Get the number of cases
+# datos_validated %>%
+#   count(valid_combination, sort = TRUE)
+
+# More specific validation
+valid_l3 <- valid_metiers %>%
+  distinct(metierL3) %>%
+  mutate(valid_L3 = TRUE)
+
+valid_l3_l4 <- valid_metiers %>%
+  distinct(metierL3, metierL4) %>%
+  mutate(valid_L3_L4 = TRUE)
+
+valid_l3_l4_l5 <- valid_metiers %>%
+  distinct(metierL3, metierL4, metierL5) %>%
+  mutate(valid_L3_L4_L5 = TRUE)
+
+datos_validated <- D1_country %>%
+  left_join(valid_l3, by = "metierL3") %>%
+  left_join(valid_l3_l4, by = c("metierL3", "metierL4")) %>%
+  left_join(valid_l3_l4_l5, by = c("metierL3", "metierL4", "metierL5")) %>%
+  mutate(
+    across(c(valid_L3, valid_L3_L4, valid_L3_L4_L5), ~ coalesce(.x, FALSE)),
+    validation_status = case_when(
+      is.na(metierL3) | is.na(metierL4) | is.na(metierL5) ~ "Missing métier information",
+      !valid_L3 ~ "Invalid L3 code",
+      !valid_L3_L4 ~ "L4 code is not valid for the stated L3 code",
+      !valid_L3_L4_L5 ~ "L5 code is not valid for the stated L3-L4 combination",
+      TRUE ~ "Valid combination"))
+
+# Print
+#datos_validated %>% count(validation_status)
+
+validation_summary <- datos_validated %>%
+  dplyr::count(validation_status, name = "n") %>%
+  dplyr::mutate(percentage = 100 * n / sum(n))
+
+knitr::kable(validation_summary,
+             col.names = c("Validation status", "Number of records", "Percentage (%)"),
+             digits = 2, align = c("l", "r", "r"),
+             caption = "Validation of Level 3, Level 4 and Level 5 métier combinations")
+
+# TRUE only when every record has a valid métier combination
+no_invalid_metiers_D1 <- all(datos_validated$validation_status == "Valid combination", na.rm = FALSE)
+
+cat(check_icon(no_invalid_metiers_D1), "All records contain a valid metier L3-L4-L5 combination.<br>")
+
+
+```
+
+
+## D2 Table - Monitoring effort
+### Monitoring type and monitoring method are provided
+```{r , echo = FALSE}
+tab_unique <- D2_country %>%
+  distinct(monitoringMethod, monitoringProgramType)
+knitr::kable(tab_unique)
+```
+
+### Number of trips is not higher than DaS
+```{r , echo = FALSE, results='asis'}
+check_ok <- all(D2_country$tripsOb <= D2_country$daysAtSeaOb, na.rm = TRUE)
+cat(check_icon(check_ok), "TripsOb ≤ daysAtSeaOb <br>")
+
+cat("Registers with trips <= DaS observed = ", length(which(D2_country$tripsOb <= D2_country$daysAtSeaOb)),", out of ", nrow(D2_country), " cases.")
+
+
+```
+
+### Number of trips is not equal to DaS observed
+```{r , echo = FALSE, results = "asis"}
+check_ok_trips <- !any(D2_country$tripsOb != D2_country$daysAtSeaOb, na.rm = TRUE)
+cat(check_icon(check_ok_trips), "Number of trips is not equal to DaS observed.<br>")
+cat("There is ", sum(!(D2_country$tripsOb == D2_country$daysAtSeaOb)), " out of ", nrow(D2_country), " cases where trips is not equal to DaS observed.")
+```
+
+### All metiers with monitoring effort have reported fishing effort
+This is already checked during data submission, just double-checking.
+```{r , echo = FALSE, results = "asis"}
+metiers_obs <- D2_country %>% 
+  group_by(metierL4) %>%
+  summarize(das_obs = sum(daysAtSeaOb))
+
+obs_fish <- D1_country %>%
+  group_by(metierL4) %>%
+  summarise(das_fish = sum(daysAtSeaF, na.rm = TRUE), .groups = "drop" )
+
+summary_obs_fish <- metiers_obs %>% 
+  left_join(obs_fish, by = c("metierL4")) %>%
+  mutate(obs_less_fish = das_obs <= das_fish)
+#summary_obs_fish
+
+more_das_obs <- summary_obs_fish %>% 
+  filter(obs_less_fish == FALSE) %>%
+  distinct(metierL4) %>% 
+  summarise(metiers = list(unique(metierL4)), .groups = "drop")
+
+check_ok_match <- all(summary_obs_fish$obs_less_fish, na.rm = TRUE)
+
+cat("<br>", check_icon(check_ok_match), "Observed DaS ≤ fishing DaS by métier (L4).")
+
+# Check if any metierL4 is reported in D2 but no in D1
+# Comprobar si algún métier de D2 no aparece en D1
+missing_metier <- any(is.na(summary_obs_fish$obs_less_fish))
+
+metiers_missing_D1 <- summary_obs_fish %>% 
+  filter(is.na(obs_less_fish)) %>%
+  distinct(metierL4)
+
+cat("<br>", check_icon(!missing_metier), 
+    if (!missing_metier) {"All métiers with monitoring effort in D2 have reported fishing effort in D1."} else {
+    paste0("The following métier(s) have monitoring effort in D2 , but are not reported in D1: ",
+      paste(metiers_missing_D1$metierL4, collapse = ", "),".")},
+  "<br>"
+)
+
+```
+
+### Information on VesselsObs is provided
+```{r , echo = FALSE}
+missing_codes <- c("", "NK", "Unknown")
+
+VesselsObs_check <- trimws(as.character(D2_country$vesselsOb))
+VesselsObs_provided <- !is.na(VesselsObs_check) &
+    !VesselsObs_check %in% missing_codes
+
+n_total <- length(VesselsObs_check)
+n_VesselsObs_provided <- sum(VesselsObs_provided)
+n_VesselsObs_missing <- sum(!VesselsObs_provided)
+
+pct_VesselsObs_provided <- if (n_total > 0L) {
+  100 * n_VesselsObs_provided / n_total
+} else {NA_real_}
+
+any_VesselsObs_provided <- n_VesselsObs_provided > 0L
+
+cat(
+  check_icon(any_VesselsObs_provided),
+  sprintf(
+    paste0(
+      "Information on VesselsObs is provided for %s of %s records ",
+      "(%.1f%%)."
+    ),
+    format(n_VesselsObs_provided, big.mark = ","),
+    format(n_total, big.mark = ","),
+    pct_VesselsObs_provided
+  ),
+  "<br>"
+)
+
+
+```
+
+### Check effort (DaS) units and range
+```{r , echo = FALSE}
+range(D2_country$daysAtSeaOb)
+```
+
+### Check unique ICES area codes & no "9999"|"-9" are reported
+```{r , echo = FALSE, results = "asis"}
+no_invalid_area_D2 <- !any(D2_country$areaCode %in% c(-9, 9999, "-9", "9999"))
+
+cat(check_icon(no_invalid_area_D2), "Valid areaCode values (-9 / 9999) have been reported.<br>")
+
+cat("Monitoring data for", length(unique(D2_country$areaCode)), "ICES areas has been reported.")
+
+# Proportion of the data missing because -9/9999
+cat("Missing ICES rectangles information represents ", round((length(which(D2_country$areaCode %in% c(-9, 9999, "-9", "9999")))/length(D2_country$areaCode))*100, 3), "% of the monitoring effort data.")
+
+
+```
+
+
+### Monitoring & fishing effort data reported per year
+```{r , echo = FALSE, results="asis", warning = FALSE, fig.width = 16, fig.height = 20, out.width = "100%"}
+# First merge both DaS & DaSObs
+das_fish <- D1_country %>%
+  group_by(metierL4, year) %>%
+  summarise(das_fish = sum(daysAtSeaF, na.rm = TRUE), .groups = "drop" )
+#das_fish
+
+das_obs <- D2_country %>%
+  group_by(metierL4, year) %>%
+  summarise(das_obs = sum(daysAtSeaOb, na.rm = TRUE), .groups = "drop" )
+#das_obs
+
+summary_das <- das_fish %>% 
+  full_join(das_obs, by = c("metierL4", "year")) %>%
+  mutate(obs_less_fish = das_obs <= das_fish)
+
+# Check if das_obs <= das_fish per metier & per year
+check_ok_monitor <- all(summary_das$das_obs <= summary_das$das_fish, na.rm = TRUE)
+
+
+cat(check_icon(check_ok_monitor), "Observed DaS ≤ fishing DaS (by metier and year) ")
+
+# Plot both efforts per year
+
+das_long <- summary_das %>%
+  pivot_longer(cols = c(das_obs, das_fish),
+    names_to = "das_type",
+    values_to = "das")
+
+# Add the number of incidents reported per metier and year
+
+incidents_df <- D3_country %>% 
+  group_by(metierL4, year) %>% 
+  summarise(
+    inc_with = sum(incidentsWithPingers[incidentsWithPingers > 0], na.rm = T),
+    inc_without = sum(incidentsWithoutPingers[incidentsWithoutPingers > 0], na.rm = T),
+    n_incidents = inc_with+inc_without,
+    .groups = "drop")
+  
+  # filter(incidentsWithPingers >= 1) %>% 
+  # count(metierL4, year, name = "n_incidents")
+
+ggplot(das_long, aes(x = factor(year), y = das, fill = das_type)) +
+  geom_col() +
+  facet_wrap(~ metierL4+das_type, scales = "free_y",
+             labeller = label_wrap_gen(multi_line=T)) +
+  geom_text(data = incidents_df, aes(x = factor(year), y = Inf, 
+                                     label = n_incidents, color = "n_incidents"), 
+            inherit.aes = FALSE, vjust = 1.2, size = 3.5, fontface = "bold",
+            family = "sans") +
+  labs(x = "Year", y = "Days at sea", fill = "") +
+  scale_fill_manual(values = c("das_obs" = "steelblue", "das_fish" = "grey70"),
+    labels = c("Fishing DaS", "Observed DaS")) +
+  scale_color_manual(name = "", values = c("n_incidents" = "firebrick"),
+  labels = c("Number of incidents")) +
+  theme_bw() + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+
+```
+
+
+### Check reported metier levels are consistent (3, 4 and 5) - Commission Decision 2008/949/EC
+```{r , echo = FALSE, results = "asis"}
+datos_validated <- D2_country %>%
+  left_join(valid_l3, by = "metierL3") %>%
+  left_join(valid_l3_l4, by = c("metierL3", "metierL4")) %>%
+  left_join(valid_l3_l4_l5, by = c("metierL3", "metierL4", "metierL5")) %>%
+  mutate(
+    across(c(valid_L3, valid_L3_L4, valid_L3_L4_L5), ~ coalesce(.x, FALSE)),
+    validation_status = case_when(
+      is.na(metierL3) | is.na(metierL4) | is.na(metierL5) ~ "Missing métier information",
+      !valid_L3 ~ "Invalid L3 code",
+      !valid_L3_L4 ~ "L4 code is not valid for the stated L3 code",
+      !valid_L3_L4_L5 ~ "L5 code is not valid for the stated L3-L4 combination",
+      TRUE ~ "Valid combination"))
+
+# Print
+#datos_validated %>% count(validation_status)
+
+validation_summary <- datos_validated %>%
+  dplyr::count(validation_status, name = "n") %>%
+  dplyr::mutate(percentage = 100 * n / sum(n))
+
+knitr::kable(validation_summary,
+             col.names = c("Validation status", "Number of records", "Percentage (%)"),
+             digits = 2, align = c("l", "r", "r"),
+             caption = "Validation of Level 3, Level 4 and Level 5 métier combinations")
+
+# TRUE only when every record has a valid métier combination
+no_invalid_metiers_D2 <- all(datos_validated$validation_status == "Valid combination", na.rm = FALSE)
+
+cat(check_icon(no_invalid_metiers_D2), "All records contain a valid metier L3-L4-L5 combination.<br>")
+```
+
+
+## D3 Table - Bycatch events
+### Note which species are included among the bycatch events & the spelling of the scientific names
+```{r , echo = FALSE}
+has_bycatch <- nrow(D3_country) > 0 &&
+               any(!is.na(D3_country$species))
+
+if(!has_bycatch){cat("No bycatch events have been reported.")}else{
+  cat(paste(sort(unique(na.omit(D3_country$species))),collapse = ", "))}
+
+```
+
+### Check monitoring protocols reported
+```{r , echo = FALSE}
+
+if(!has_bycatch){
+  cat("No monitoring protocols reported because no bycatch events occurred.")}else{
+  protocols_sps <- D3_country %>%  
+    group_by(samplingProtocol) %>% 
+    summarise(n_species = n_distinct(species, na.rm = TRUE),.groups = "drop")
+  knitr::kable(protocols_sps,
+               caption = "Monitoring protocols and number of bycatch species reported")
+}
+
+```
+
+### Fields IndividualsWithPingers, IndividualsWithoutPingers, IncidentsWithoutPingers & IncidentsWithPingers do not contain values representing unknown information or not valid values (e.g. 99999, -9)
+```{r , echo = FALSE}
+
+fields_bycatch <- c("individualsWithPingers", "individualsWithoutPingers",
+                    "incidentsWithPingers", "incidentsWithoutPingers")
+
+invalid_values <- c(-9, 99999, "-9", "99999", NA, "NA", "NK")
+
+
+check_bycatch_fields <- function(D, fields) {
+  res <- lapply(fields, function(f) {
+    x <- D[[f]]
+    invalid <- x %in% invalid_values | x < 0
+    list(field   = f,
+         passed  = !any(invalid, na.rm = TRUE),
+         n_bad   = sum(invalid, na.rm = TRUE))
+    })
+  do.call(rbind, lapply(res, as.data.frame))
+}
+
+bycatch_check <- check_bycatch_fields(D3_country, fields_bycatch)
+
+check_ok_bycatch <- all(bycatch_check$passed)
+
+
+cat(check_icon(check_ok_bycatch), "Bycatch-related fields contain no unknown or not valid values.")
+
+knitr::kable(bycatch_check)
+
+```
+
+### Check that when incidents are reported, individuals are reported
+```{r , echo = FALSE}
+incidents_check <- D3_country %>%
+  mutate(check_with_pingers = incidentsWithPingers > 0 & individualsWithPingers == 0,
+         check_without_pingers = incidentsWithoutPingers > 0 & individualsWithoutPingers == 0)
+# Problematic records
+
+incidents_problems <- incidents_check %>%
+  filter(check_with_pingers | check_without_pingers)
+
+check_inc_ok <- nrow(incidents_problems) == 0
+
+cat(check_icon(check_inc_ok), "When incidents are reported, individuals are reported.",
+    if(!check_inc_ok)
+    paste0(" (", nrow(incidents_problems), " row(s) present issues, out of ", nrow(D3_country), ").") else "")
+
+```
+
+### Check that all rows reported have data
+```{r, echo = FALSE}
+cols_to_check <- c("individualsWithPingers", "individualsWithoutPingers",
+                   "incidentsWithPingers", "incidentsWithoutPingers")
+
+all_rows_data <- D3_country %>% 
+  mutate(
+    any_zero = any(c_across(all_of(cols_to_check)) > 0, na.rm = TRUE))
+
+zero_rows <- D3_country %>%
+  filter(rowSums(across(all_of(cols_to_check), ~ . > 0), na.rm = TRUE) == 0)
+
+check_all_rows_ok <- nrow(zero_rows) == 0
+
+cat(check_icon(check_all_rows_ok), "All rows reported have data.", 
+    if(!check_all_rows_ok)
+      paste0("", nrow(zero_rows), " row(s) are reported with no bycatch data.")
+    else "")
+```
+
+### Check unique ICES area codes & no “9999”|“-9” are reported
+```{r , echo = FALSE}
+no_invalid_area_D3 <- !any(D3_country$areaCode %in% c(-9, 9999, "-9", "9999"))
+
+cat(check_icon(no_invalid_area_D3), "Valid areaCode values (-9 / 9999) have been reported.<br>")
+
+cat("Bycatch data for", length(unique(D3_country$areaCode)), "ICES areaCode has been reported.")
+
+```
+
+### Check reported metier levels are consistent (3, 4 and 5) - Commission Decision 2008/949/EC
+```{r , echo = FALSE, results = "asis"}
+datos_validated <- D3_country %>%
+  left_join(valid_l3, by = "metierL3") %>%
+  left_join(valid_l3_l4, by = c("metierL3", "metierL4")) %>%
+  left_join(valid_l3_l4_l5, by = c("metierL3", "metierL4", "metierL5")) %>%
+  mutate(
+    across(c(valid_L3, valid_L3_L4, valid_L3_L4_L5), ~ coalesce(.x, FALSE)),
+    validation_status = case_when(
+      is.na(metierL3) | is.na(metierL4) | is.na(metierL5) ~ "Missing métier information",
+      !valid_L3 ~ "Invalid L3 code",
+      !valid_L3_L4 ~ "L4 code is not valid for the stated L3 code",
+      !valid_L3_L4_L5 ~ "L5 code is not valid for the stated L3-L4 combination",
+      TRUE ~ "Valid combination"))
+
+# Print
+#datos_validated %>% count(validation_status)
+
+validation_summary <- datos_validated %>%
+  dplyr::count(validation_status, name = "n") %>%
+  dplyr::mutate(percentage = 100 * n / sum(n))
+
+knitr::kable(validation_summary,
+             col.names = c("Validation status", "Number of records", "Percentage (%)"),
+             digits = 2, align = c("l", "r", "r"),
+             caption = "Validation of Level 3, Level 4 and Level 5 métier combinations")
+
+# TRUE only when every record has a valid métier combination
+no_invalid_metiers_D3 <- all(datos_validated$validation_status == "Valid combination", na.rm = FALSE)
+
+cat(check_icon(no_invalid_metiers_D3), "All records contain a valid metier L3-L4-L5 combination.<br>")
+```

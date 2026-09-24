@@ -6,7 +6,7 @@ D5.csv
 .DS_Store
 *.csv
 *.swp
-#.remote.*
+.remote.*
 01_get_wgbyc_data.R
 # never ignore a gitignore
 !.gitignore

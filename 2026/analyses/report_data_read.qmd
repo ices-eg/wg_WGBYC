@@ -118,6 +118,9 @@ if (file.exists(here("data", "D1_wgbyc.csv"))) {
     D1 <- fread(here("data", "D1_wgbyc.csv"))
     D2 <- fread(here("data", "D2_wgbyc.csv"))
     D3 <- fread(here("data", "D3_wgbyc.csv"))
+    D4 <- fread(here("data", "D4_wgbyc.csv"))
+    D5 <- fread(here("data", "D5_wgbyc.csv"))
+
 } else {
     # read the data from ices API
     linkD1 <- "https://bycatch.ices.dk/api/GetD1_Fishing_effort"
@@ -2216,7 +2219,7 @@ read_docx() |>
 # Select parameters =======================================
 
 ecoregions_unique <- unique(D3$ecoregion)
-years_unique <- c(2017:2025)
+years_unique <- c(2017:currentyear)
 
 # Clean D3 ===============================================
 

@@ -2878,7 +2878,7 @@ n_Chondrostei_species <- n_species$nbspp[n_species$classname == "Chondrostei"]
 total_fishing_effort <- sum(pipo$body$dataset$`Fishing Effort (das)`) %>% round(2)
 total_observed_effort <- sum(pipo$body$dataset$`Total Observed Effort (das)`) %>% round(2)
 
-text_1.3 <- glue("In total (all ecoregions combined), {n_marine_mammals} marine mammals ({n_marine_mammals_species} species), {n_sea_bird} seabirds ({n_sea_bird_species} species), {n_marine_turtle} marine turtles ({n_marine_turtle_species} species), {n_holocephali} Holocephali ({n_Holocephali_species} species) and {n_chondrostei} Chondrostei ({n_Chondrostei_species} species) were recorded as bycatch during {currentyear} Records of {n_fish_species} fish species
+text_1.3 <- glue("In total (all ecoregions combined), {n_marine_mammals} marine mammals ({n_marine_mammals_species} species), {n_sea_bird} seabirds ({n_sea_bird_species} species), {n_marine_turtle} marine turtles ({n_marine_turtle_species} species), {n_holocephali} Holocephali ({n_Holocephali_species} species) and {n_chondrostei} Chondrostei ({n_Chondrostei_species} species) were recorded as bycatch during {currentyear}. Records of {n_fish_species} fish species
 from the ICES fish bycatch reference list were also reported, totaling over {n_fishes} specimens.
 The year {currentyear} totals {total_fishing_effort} (das) fishing effort and {total_observed_effort} (das) observed effort.
 ")

@@ -5758,9 +5758,10 @@ dev.off()
 n_marine_mammals <- pipo$body$dataset %>% filter(variable == "Individuals") %>% summarise(sum(Mammalia, na.rm = TRUE)) %>% pull()
 n_sea_bird <- pipo$body$dataset %>% filter(variable == "Individuals") %>% summarise(sum(Aves, na.rm = TRUE)) %>% pull()
 n_marine_turtle <- pipo$body$dataset %>% filter(variable == "Individuals") %>% summarise(sum(Reptiles, na.rm = TRUE)) %>% pull()
-n_fishes <- pipo$body$dataset %>% filter(variable == "Individuals") %>% summarise(sum(Teleostei, na.rm = TRUE)) %>% pull()
-n_holocephali <- pipo$body$dataset %>% filter(variable == "Individuals") %>% summarise(sum(Holocephali, na.rm = TRUE)) %>% pull()
-n_chondrostei <- pipo$body$dataset %>% filter(variable == "Individuals") %>% summarise(sum(Chondrostei, na.rm = TRUE)) %>% pull()
+n_Teleostei <- pipo$body$dataset %>% filter(variable == "Individuals") %>% summarise(sum(Teleostei, na.rm = TRUE)) %>% pull()
+n_Elasmobranchii <- pipo$body$dataset %>% filter(variable == "Individuals") %>% summarise(sum(Elasmobranchii, na.rm = TRUE)) %>% pull()
+n_Holocephali <- pipo$body$dataset %>% filter(variable == "Individuals") %>% summarise(sum(Holocephali, na.rm = TRUE)) %>% pull()
+n_Chondrostei <- pipo$body$dataset %>% filter(variable == "Individuals") %>% summarise(sum(Chondrostei, na.rm = TRUE)) %>% pull()
 
 #  number of species
 n_species <- D3 %>%
@@ -5774,7 +5775,8 @@ n_species <- D3 %>%
 n_marine_mammals_species <- n_species$nbspp[n_species$classname == "Mammalia"]
 n_sea_bird_species <- n_species$nbspp[n_species$classname == "Aves"]
 n_marine_turtle_species <- n_species$nbspp[n_species$classname == "Reptilia"]
-n_fish_species <- n_species$nbspp[n_species$classname == "Teleostei"]
+n_Teleostei_species <- n_species$nbspp[n_species$classname == "Teleostei"]
+n_Elasmobranchii_species <- n_species$nbspp[n_species$classname == "Elasmobranchii"]
 n_Holocephali_species <- n_species$nbspp[n_species$classname == "Holocephali"]
 n_Chondrostei_species <- n_species$nbspp[n_species$classname == "Chondrostei"]
 
@@ -5782,8 +5784,16 @@ n_Chondrostei_species <- n_species$nbspp[n_species$classname == "Chondrostei"]
 total_fishing_effort <- sum(pipo$body$dataset$`Fishing Effort (das)`) %>% round(2)
 total_observed_effort <- sum(pipo$body$dataset$`Total Observed Effort (das)`) %>% round(2)
 
-text_1.3 <- glue("In total (all ecoregions combined), {n_marine_mammals} marine mammals ({n_marine_mammals_species} species), {n_sea_bird} seabirds ({n_sea_bird_species} species), {n_marine_turtle} marine turtles ({n_marine_turtle_species} species), {n_holocephali} Holocephali ({n_Holocephali_species} species) and {n_chondrostei} Chondrostei ({n_Chondrostei_species} species) were recorded as bycatch during {currentyear}. Records of {n_fish_species} fish species
-from the ICES fish bycatch reference list were also reported, totaling over {n_fishes} specimens.
+text_1.3 <- glue("In total (all ecoregions combined), 
+
+{n_marine_mammals} marine mammals ({n_marine_mammals_species} species), 
+{n_sea_bird} seabirds ({n_sea_bird_species} species), 
+{n_marine_turtle} marine turtles ({n_marine_turtle_species} species), 
+{n_Elasmobranchii} Elasmobranchii ({n_Elasmobranchii_species} species), 
+{n_Teleostei} Teleostei ({n_Teleostei_species} species), 
+{n_Holocephali} Holocephali ({n_Holocephali_species} species) and
+{n_Chondrostei} Chondrostei ({n_Chondrostei_species} species) 
+
 The year {currentyear} totals {total_fishing_effort} (das) fishing effort and {total_observed_effort} (das) observed effort.
 ")
 print(text_1.3)
@@ -5799,12 +5809,53 @@ read_docx() |>
 ```
 
 
+
+
 ## 1.3.1
 
-```{r anotherchunk,cache=TRUE,eval=T,echo=T,include=T}
-#code
-```
+```{r EM_descriptive_stats ,cache=TRUE,eval=T,echo=T,include=T}
+NofIncidents <- D3 %>%
+  group_by(year, monitoringMethod, classname) %>%
+  summarize(
+    sum_incidents = sum(incidentsWithPingers, na.rm = TRUE) + sum(incidentsWithoutPingers, na.rm = TRUE),
+  )
 
+Aves <- NofIncidents %>%
+  filter(classname == "Aves")
+Aves <- Aves %>%
+  group_by(year, monitoringMethod) %>%
+  summarise(sum_incidents = sum(sum_incidents)) %>%
+  mutate(total_incidents_per_year = sum(sum_incidents, na.rm = TRUE)) %>%
+  mutate(percentage = (sum_incidents / total_incidents_per_year) * 100)
+percent_aves <- round(Aves$percentage[Aves$year == currentyear & Aves$monitoringMethod == "EM"], 0)
+
+Mammalia <- NofIncidents %>%
+  filter(classname == "Mammalia")
+Mammalia <- Mammalia %>%
+  group_by(year, monitoringMethod) %>%
+  summarise(sum_incidents = sum(sum_incidents)) %>%
+  mutate(total_incidents_per_year = sum(sum_incidents, na.rm = TRUE)) %>%
+  mutate(percentage = (sum_incidents / total_incidents_per_year) * 100)
+percent_mammalia <- round(Mammalia$percentage[Mammalia$year == currentyear & Mammalia$monitoringMethod == "EM"], 0)
+
+text_1.3.1 <- glue("In France, only data collected on marine mammals - mainly cetaceans - can be analyzed. EM data from other ETP 
+     species such as seabirds, elasmobranchs and reptiles cannot be considered as data analysis on these taxa cannot
+     be performed without vessel crews’ approval (Figure 1.12). Along with at-sea observers, this method represents the
+     largest source of bycatch records reported (Figure 1.9), with {percent_mammalia} % of reported mammal and {percent_aves} % of seabird bycatch 
+     incidents recorded with EM in 2025. This technology enables continuous monitoring providing high coverage and an
+     increased likelihood of recording rare bycatch events of ETP species.")
+
+print(text_1.3.1)
+
+
+# Print it
+filename <- here("outputs", "descriptive_text_EM.docx")
+read_docx() |>
+    body_add_par(
+        text_1.3.1
+    ) |>
+    print(target = filename)
+```
 
 
 # R session information

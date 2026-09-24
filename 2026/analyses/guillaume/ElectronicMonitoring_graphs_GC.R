@@ -47,15 +47,24 @@ Aves <- Aves %>%
   summarise(sum_incidents = sum(sum_incidents)) %>%
   mutate(total_incidents_per_year = sum(sum_incidents, na.rm = TRUE)) %>%
   mutate(percentage = (sum_incidents / total_incidents_per_year) * 100)
+percent_aves <- Aves$percentage[Aves$year == 2025 & Aves$monitoringMethod == "EM"]
 
 Mammalia <- NofIncidents %>%
   filter(classname == "Mammalia")
-
 Mammalia <- Mammalia %>%
   group_by(year, monitoringMethod) %>%
   summarise(sum_incidents = sum(sum_incidents)) %>%
   mutate(total_incidents_per_year = sum(sum_incidents, na.rm = TRUE)) %>%
   mutate(percentage = (sum_incidents / total_incidents_per_year) * 100)
+percent_mammalia <- Mammalia$percentage[Mammalia$year == 2025 & Mammalia$monitoringMethod == "EM"]
+
+glue("In France, only data collected on marine mammals - mainly cetaceans - can be analyzed. EM data from other ETP 
+     species such as seabirds, elasmobranchs and reptiles cannot be considered as data analysis on these taxa cannot
+     be performed without vessel crews’ approval (Figure 1.12). Along with at-sea observers, this method represents the
+     largest source of bycatch records reported (Figure 1.9), with {percent_mammalia} % of reported mammal and {percent_aves} % of seabird bycatch 
+     incidents recorded with EM in 2025. This technology enables continuous monitoring providing high coverage and an
+     increased likelihood of recording rare bycatch events of ETP species.")
+
 
 ## 4.3  Trips per country per year  ====
 
